@@ -84,6 +84,39 @@
     letter-spacing: 0.05em;
   }
 
+  .notice {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    background: linear-gradient(135deg, rgba(255,170,0,0.12), rgba(255,94,94,0.08));
+    border: 1px solid rgba(255,170,0,0.4);
+    border-left: 4px solid #ffaa00;
+    border-radius: 14px;
+    padding: 18px 22px;
+    margin-bottom: 32px;
+    box-shadow: 0 4px 20px rgba(255,170,0,0.08);
+  }
+  .notice-icon {
+    font-size: 36px;
+    line-height: 1;
+    flex-shrink: 0;
+  }
+  .notice-text {
+    line-height: 1.6;
+    font-size: 14px;
+    color: #fff;
+  }
+  .notice-text b {
+    color: #ffd97a;
+    font-size: 15px;
+  }
+  .notice-text span {
+    display: inline-block;
+    margin-top: 4px;
+    font-size: 12px;
+    color: #ddd;
+  }
+
   .games {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
@@ -209,11 +242,19 @@
   /* スマホ対応 */
   @media (max-width: 600px) {
     .container { padding: 40px 16px 60px; }
-    header { margin-bottom: 40px; }
+    header { margin-bottom: 32px; }
     .games { gap: 16px; margin-bottom: 40px; }
     .game-card { padding: 24px 20px; }
     .game-card .emoji { font-size: 48px; }
     .game-card .title { font-size: 18px; }
+    .notice {
+      flex-direction: column;
+      text-align: center;
+      padding: 16px;
+      gap: 8px;
+    }
+    .notice-icon { font-size: 32px; }
+    .notice-text { font-size: 13px; }
   }
 </style>
 </head>
@@ -229,6 +270,14 @@
       </p>
       <div class="badge">⚡ Made with Claude Code</div>
     </header>
+
+    <div class="notice">
+      <div class="notice-icon">💻</div>
+      <div class="notice-text">
+        <b>PC（キーボード操作）専用です</b><br>
+        <span>スマホ・タブレットでもページは表示されますが、操作はできません。<br>PCのChrome / Safari / Edge でアクセスしてね！</span>
+      </div>
+    </div>
 
     <div class="games">
       <a href="giraffe-game.html" class="game-card card-giraffe">
@@ -265,7 +314,7 @@
     <footer>
       <p>Made with <span class="heart">🦒</span> by りょうや × Claude Code</p>
       <p style="margin-top:8px;opacity:0.7">
-        ※ 推奨環境：PC（キーボード操作）・最新のChrome/Safari/Edge
+        ※ ブラウザ進捗データはお使いのブラウザに保存されます
       </p>
     </footer>
   </div>
