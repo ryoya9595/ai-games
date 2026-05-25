@@ -496,14 +496,22 @@ function mkPlat(){
 function mkStar(){const m=new THREE.Mesh(starGeo,starMat);m.rotation.y=Math.PI/2;return m}
 function mkGoal(){
   const g=new THREE.Group();
+  // Wide goal gate spanning all 3 lanes
   [-1,1].forEach(s=>{
-    const pole=new THREE.Mesh(new THREE.CylinderGeometry(0.06,0.06,3.5,6),new THREE.MeshLambertMaterial({color:0xdddddd}));
-    pole.position.set(s*1.2,1.75,0);g.add(pole);
+    const pole=new THREE.Mesh(new THREE.CylinderGeometry(0.08,0.08,4,8),new THREE.MeshLambertMaterial({color:0xdddddd}));
+    pole.position.set(s*3.0,2.0,0);g.add(pole);
+    // Pole top sphere
+    const top=new THREE.Mesh(new THREE.SphereGeometry(0.15,8,8),new THREE.MeshLambertMaterial({color:0xFFD700}));
+    top.position.set(s*3.0,4.0,0);g.add(top);
   });
-  const banner=new THREE.Mesh(new THREE.PlaneGeometry(2.4,0.8),new THREE.MeshLambertMaterial({color:0xFF69B4,side:THREE.DoubleSide}));
-  banner.position.set(0,3.2,0);g.add(banner);
-  const txt=new THREE.Mesh(new THREE.PlaneGeometry(1.6,0.5),new THREE.MeshLambertMaterial({color:0xFFD700,side:THREE.DoubleSide}));
-  txt.position.set(0,3.2,0.01);g.add(txt);
+  // Wide banner
+  const banner=new THREE.Mesh(new THREE.PlaneGeometry(6.0,1.0),new THREE.MeshLambertMaterial({color:0xFF69B4,side:THREE.DoubleSide}));
+  banner.position.set(0,3.5,0);g.add(banner);
+  const txt=new THREE.Mesh(new THREE.PlaneGeometry(4.0,0.6),new THREE.MeshLambertMaterial({color:0xFFD700,side:THREE.DoubleSide}));
+  txt.position.set(0,3.5,0.01);g.add(txt);
+  // Ground line (finish line on the floor)
+  const line=new THREE.Mesh(new THREE.PlaneGeometry(6.0,0.3),new THREE.MeshLambertMaterial({color:0xFF69B4,side:THREE.DoubleSide}));
+  line.rotation.x=-Math.PI/2;line.position.set(0,0.36,0);g.add(line);
   return g;
 }
 
@@ -1147,7 +1155,7 @@ function update(){
       const nextLv=STAGES[selStage].startLv+curLevel;
       showO('Lv.'+nextLv+' '+nextTm.name+' へ！','');
       st='levelClear';
-      setTimeout(()=>{genLevel();updHUD();st='playing';hideO()},1800);
+      setTimeout(()=>{genLevel();updHUD();st='playing';hideO();playBGM(selStage)},1800);
     }
     return;
   }
