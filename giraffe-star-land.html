@@ -65,6 +65,31 @@ canvas{display:block}
 .stg-btn.death{animation:pulse 1.5s ease-in-out infinite}
 @keyframes pulse{0%,100%{box-shadow:0 3px 12px rgba(0,0,0,0.3)}50%{box-shadow:0 3px 20px rgba(255,0,0,0.5)}}
 #back-btn{margin-top:14px;background:rgba(255,255,255,0.25);border:2px solid rgba(255,255,255,0.4);color:#fff;padding:10px 36px;border-radius:20px;font-size:16px;cursor:pointer}
+#item-help-btn{margin-top:8px;background:rgba(255,200,50,0.3);border:2px solid rgba(255,200,50,0.5);color:#fff;padding:10px 36px;border-radius:20px;font-size:16px;cursor:pointer}
+#item-help-btn:active{background:rgba(255,200,50,0.5)}
+#item-guide{position:fixed;inset:0;z-index:25;display:none;flex-direction:column;align-items:center;justify-content:flex-start;background:linear-gradient(180deg,#1a1a3a 0%,#2a2a5a 100%);overflow-y:auto;-webkit-overflow-scrolling:touch}
+#item-guide-inner{max-width:480px;width:90%;padding:32px 0 40px}
+#item-guide h2{font-size:26px;color:#FFD700;text-align:center;margin-bottom:20px;text-shadow:2px 2px 0 rgba(0,0,0,0.4)}
+.ig-card{background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:16px;padding:16px 18px;margin-bottom:14px}
+.ig-card-head{display:flex;align-items:center;gap:12px;margin-bottom:8px}
+.ig-card-icon{font-size:36px;line-height:1;flex-shrink:0}
+.ig-card-title{font-size:18px;font-weight:bold}
+.ig-card-desc{font-size:13px;color:#ccc;line-height:1.7}
+.ig-card-desc b{color:#FFD700}
+.ig-card.item-wing{border-color:rgba(255,255,255,0.3)}
+.ig-card.item-wing .ig-card-title{color:#E8E8FF}
+.ig-card.item-barrier{border-color:rgba(68,170,255,0.4)}
+.ig-card.item-barrier .ig-card-title{color:#44AAFF}
+.ig-card.item-fever{border-color:rgba(255,215,0,0.4)}
+.ig-card.item-fever .ig-card-title{color:#FFD700}
+.ig-card.item-slow{border-color:rgba(100,200,255,0.4)}
+.ig-card.item-slow .ig-card-title{color:#64C8FF}
+.ig-card.item-star{border-color:rgba(255,255,100,0.4)}
+.ig-card.item-star .ig-card-title{color:#FFFF66}
+.ig-card.item-enemy{border-color:rgba(255,80,80,0.4)}
+.ig-card.item-enemy .ig-card-title{color:#FF5050}
+#ig-close-btn{display:block;margin:16px auto 0;background:rgba(255,255,255,0.2);border:2px solid rgba(255,255,255,0.35);color:#fff;padding:12px 48px;border-radius:20px;font-size:16px;cursor:pointer}
+#ig-close-btn:active{background:rgba(255,255,255,0.35)}
 #overlay{position:fixed;inset:0;z-index:15;display:none;flex-direction:column;align-items:center;justify-content:center;background:rgba(0,0,0,0.6);cursor:pointer}
 #overlay h2{color:#FFD700;font-size:40px;text-shadow:2px 2px 0 rgba(0,0,0,0.5);margin-bottom:14px}
 #overlay p{color:#fff;font-size:18px;text-align:center;line-height:1.6}
@@ -99,7 +124,104 @@ canvas{display:block}
 <div id="stage-select">
   <h2>ステージ選択</h2>
   <div id="stage-buttons"></div>
+  <button id="item-help-btn">❓ アイテムガイド</button>
   <button id="back-btn">← もどる</button>
+</div>
+<div id="item-guide">
+  <div id="item-guide-inner">
+    <h2>❓ アイテム＆ギミックガイド</h2>
+
+    <div class="ig-card item-star">
+      <div class="ig-card-head">
+        <span class="ig-card-icon">⭐</span>
+        <span class="ig-card-title">スター</span>
+      </div>
+      <div class="ig-card-desc">
+        コース上にたくさん浮いている基本アイテム。<br>
+        拾うと <b>100ポイント</b> 獲得。<br>
+        スターフィーバー中は <b>300ポイント</b> にUP！<br>
+        たくさん集めてハイスコアを目指そう。
+      </div>
+    </div>
+
+    <div class="ig-card item-wing">
+      <div class="ig-card-head">
+        <span class="ig-card-icon">🪽</span>
+        <span class="ig-card-title">ウイング（はね）</span>
+      </div>
+      <div class="ig-card-desc">
+        出現率: <b>約1/3</b>（ステージ序盤のみ）<br>
+        効果時間: <b>15秒</b><br>
+        ・<b>3段ジャンプ</b> が可能に！<br>
+        ・ふんわり落下（落下速度半減）<br>
+        ・ジャンプ力10%アップ<br>
+        ・近くのスターを自動で引き寄せる（磁石効果）<br>
+        序盤で取れたら大チャンス！
+      </div>
+    </div>
+
+    <div class="ig-card item-barrier">
+      <div class="ig-card-head">
+        <span class="ig-card-icon">🛡️</span>
+        <span class="ig-card-title">バリア</span>
+      </div>
+      <div class="ig-card-desc">
+        出現率: <b>約1/3</b>（ステージ前半〜中盤）<br>
+        効果: <b>1回だけ</b>ダメージ無効化<br>
+        ・敵の接触ダメージを吸収<br>
+        ・飛んでくる弾も1発ブロック<br>
+        ・使うと消えるので大事に使おう<br>
+        キリンの周りに青い球体が表示されるよ。
+      </div>
+    </div>
+
+    <div class="ig-card item-fever">
+      <div class="ig-card-head">
+        <span class="ig-card-icon">🌟</span>
+        <span class="ig-card-title">スターフィーバー</span>
+      </div>
+      <div class="ig-card-desc">
+        出現率: <b>約1/4</b>（ステージ前半〜中盤）<br>
+        効果時間: <b>8秒</b><br>
+        ・スター獲得ポイントが <b>3倍</b>（100→300）に！<br>
+        ・HUDに残り時間が表示される<br>
+        スコアアタックの鍵！フィーバー中にスターを大量ゲットしよう。
+      </div>
+    </div>
+
+    <div class="ig-card item-slow">
+      <div class="ig-card-head">
+        <span class="ig-card-icon">⏱️</span>
+        <span class="ig-card-title">スロー</span>
+      </div>
+      <div class="ig-card-desc">
+        出現率: <b>約1/5</b>（ステージ序盤〜中盤）<br>
+        効果時間: <b>8秒</b><br>
+        ・ゲーム速度が <b>半分</b> になる！<br>
+        ・操作が楽になり、判断する時間が増える<br>
+        ・難所の手前で取れると超ラッキー<br>
+        難しいステージほど活躍するアイテム。
+      </div>
+    </div>
+
+    <div class="ig-card item-enemy">
+      <div class="ig-card-head">
+        <span class="ig-card-icon">👾</span>
+        <span class="ig-card-title">敵キャラについて</span>
+      </div>
+      <div class="ig-card-desc">
+        ステージごとに異なる敵が登場！<br>
+        🐛 <b>はらっぱ</b>：いもむし（動かない）<br>
+        🐦 <b>おそら</b>：とり（左右に動く）<br>
+        👻 <b>ほしぞら</b>：ゴースト（弾を撃つ）<br>
+        🗿 <b>マウンテン</b>：ゴーレム（岩を投げる）<br>
+        💀 <b>デス</b>：リーパー（高速移動＋連射）<br>
+        触れるとゲームオーバー！バリアで1回防げるよ。
+      </div>
+    </div>
+
+    <button id="ig-close-btn">← もどる</button>
+  </div>
 </div>
 <div id="hud">
   <div id="hud-inner">
@@ -515,22 +637,114 @@ function mkPlat(){
 function mkStar(){const m=new THREE.Mesh(starGeo,starMat);m.rotation.y=Math.PI/2;return m}
 function mkGoal(){
   const g=new THREE.Group();
-  // Wide goal gate spanning all 3 lanes
+  const sg=STAGES[selStage];
+  const tc=sg.tc; // stage theme color
+  const gold=0xFFD700;
+  const m=c=>new THREE.MeshLambertMaterial({color:c});
+  const mGlow=c=>new THREE.MeshBasicMaterial({color:c});
+
+  // === Ornamental pillars ===
   [-1,1].forEach(s=>{
-    const pole=new THREE.Mesh(new THREE.CylinderGeometry(0.08,0.08,4,8),new THREE.MeshLambertMaterial({color:0xdddddd}));
-    pole.position.set(s*3.0,2.0,0);g.add(pole);
-    // Pole top sphere
-    const top=new THREE.Mesh(new THREE.SphereGeometry(0.15,8,8),new THREE.MeshLambertMaterial({color:0xFFD700}));
-    top.position.set(s*3.0,4.0,0);g.add(top);
+    // Main pillar (thick, tapered)
+    const pillar=new THREE.Mesh(new THREE.CylinderGeometry(0.18,0.22,4.2,8),m(0xF5F0E0));
+    pillar.position.set(s*3.2,2.1,0);g.add(pillar);
+    // Pillar base (wide block)
+    const base=new THREE.Mesh(new THREE.BoxGeometry(0.7,0.4,0.7),m(0xE8E0C8));
+    base.position.set(s*3.2,0.2,0);g.add(base);
+    // Pillar ring decorations (3 golden rings)
+    [0.8,2.0,3.2].forEach(y=>{
+      const ring=new THREE.Mesh(new THREE.TorusGeometry(0.22,0.03,8,16),m(gold));
+      ring.position.set(s*3.2,y,0);ring.rotation.x=Math.PI/2;g.add(ring);
+    });
+    // Pillar top: rotating star (stored for animation)
+    const starG=new THREE.Group();
+    // Star shape: octahedron + smaller spikes
+    const starCore=new THREE.Mesh(new THREE.OctahedronGeometry(0.25,0),mGlow(gold));
+    starG.add(starCore);
+    const spike=new THREE.Mesh(new THREE.ConeGeometry(0.08,0.3,4),mGlow(0xFFF8DC));
+    spike.position.y=0.25;starG.add(spike);
+    const spike2=spike.clone();spike2.rotation.z=Math.PI;spike2.position.y=-0.25;starG.add(spike2);
+    starG.position.set(s*3.2,4.5,0);
+    starG.userData.spin=true;
+    g.add(starG);
+    // Glow halo around star
+    const halo=new THREE.Mesh(new THREE.RingGeometry(0.3,0.5,16),
+      new THREE.MeshBasicMaterial({color:gold,transparent:true,opacity:0.25,side:THREE.DoubleSide}));
+    halo.position.set(s*3.2,4.5,0);g.add(halo);
   });
-  // Wide banner
-  const banner=new THREE.Mesh(new THREE.PlaneGeometry(6.0,1.0),new THREE.MeshLambertMaterial({color:0xFF69B4,side:THREE.DoubleSide}));
-  banner.position.set(0,3.5,0);g.add(banner);
-  const txt=new THREE.Mesh(new THREE.PlaneGeometry(4.0,0.6),new THREE.MeshLambertMaterial({color:0xFFD700,side:THREE.DoubleSide}));
-  txt.position.set(0,3.5,0.01);g.add(txt);
-  // Ground line (finish line on the floor)
-  const line=new THREE.Mesh(new THREE.PlaneGeometry(6.0,0.3),new THREE.MeshLambertMaterial({color:0xFF69B4,side:THREE.DoubleSide}));
-  line.rotation.x=-Math.PI/2;line.position.set(0,0.36,0);g.add(line);
+
+  // === Arch (curved top connecting pillars) ===
+  const archSegs=12;
+  for(let i=0;i<=archSegs;i++){
+    const t=i/archSegs;
+    const angle=Math.PI*t;
+    const x=Math.cos(angle)*3.2;
+    const y=4.2+Math.sin(angle)*1.0;
+    const block=new THREE.Mesh(new THREE.BoxGeometry(0.55,0.25,0.35),m(tc));
+    block.position.set(x,y,0);
+    block.rotation.z=-angle+Math.PI/2;
+    g.add(block);
+    // Gold trim on front face
+    if(i%2===0){
+      const trim=new THREE.Mesh(new THREE.BoxGeometry(0.45,0.12,0.02),mGlow(gold));
+      trim.position.set(x,y,0.18);trim.rotation.z=block.rotation.z;g.add(trim);
+    }
+  }
+  // Arch keystone (center top decoration)
+  const keystone=new THREE.Mesh(new THREE.OctahedronGeometry(0.3,0),mGlow(gold));
+  keystone.position.set(0,5.25,0);keystone.userData.spin=true;g.add(keystone);
+
+  // === Banner (hanging from arch) ===
+  const bannerMat=new THREE.MeshLambertMaterial({color:tc,side:THREE.DoubleSide,transparent:true,opacity:0.85});
+  const banner=new THREE.Mesh(new THREE.PlaneGeometry(4.5,0.9),bannerMat);
+  banner.position.set(0,3.6,0.2);g.add(banner);
+  // "GOAL" text area (gold rectangle on banner)
+  const txtBg=new THREE.Mesh(new THREE.PlaneGeometry(3.2,0.5),
+    new THREE.MeshBasicMaterial({color:gold,side:THREE.DoubleSide}));
+  txtBg.position.set(0,3.6,0.22);g.add(txtBg);
+  // Star decorations on banner
+  [-1.4,1.4].forEach(x=>{
+    const ds=new THREE.Mesh(new THREE.OctahedronGeometry(0.12,0),mGlow(0xFFF8DC));
+    ds.position.set(x,3.6,0.22);ds.userData.spin=true;g.add(ds);
+  });
+
+  // === Checkered finish line on ground ===
+  const checkerSize=0.5;
+  const numX=12, numZ=3;
+  for(let ix=0;ix<numX;ix++){
+    for(let iz=0;iz<numZ;iz++){
+      const isWhite=(ix+iz)%2===0;
+      const tile=new THREE.Mesh(
+        new THREE.PlaneGeometry(checkerSize,checkerSize),
+        new THREE.MeshLambertMaterial({color:isWhite?0xFFFFFF:0x222222,side:THREE.DoubleSide})
+      );
+      tile.rotation.x=-Math.PI/2;
+      tile.position.set((ix-numX/2+0.5)*checkerSize, 0.36, (iz-1)*checkerSize);
+      g.add(tile);
+    }
+  }
+
+  // === Side ribbons (flowing down from arch) ===
+  [-1,1].forEach(s=>{
+    const ribbon=new THREE.Mesh(new THREE.PlaneGeometry(0.3,1.8),
+      new THREE.MeshLambertMaterial({color:tc,side:THREE.DoubleSide,transparent:true,opacity:0.7}));
+    ribbon.position.set(s*2.8,2.8,0.15);ribbon.rotation.z=s*0.1;g.add(ribbon);
+    // Ribbon tip (triangle)
+    const tip=new THREE.Mesh(new THREE.ConeGeometry(0.2,0.4,3),m(tc));
+    tip.position.set(s*2.8,1.8,0.15);tip.rotation.z=Math.PI;g.add(tip);
+  });
+
+  // === Floating sparkle orbs (around the gate) ===
+  for(let i=0;i<8;i++){
+    const orb=new THREE.Mesh(new THREE.SphereGeometry(0.06,6,6),
+      new THREE.MeshBasicMaterial({color:gold,transparent:true,opacity:0.5}));
+    const angle=Math.PI*2*i/8;
+    orb.position.set(Math.cos(angle)*2.5, 3.0+Math.sin(angle*2)*1.2, Math.sin(angle)*0.5);
+    orb.userData.sparkle=true;
+    orb.userData.sparklePhase=i*0.8;
+    g.add(orb);
+  }
+
   return g;
 }
 
@@ -980,16 +1194,18 @@ function spawnRow(z,idx){
     const s=mkStar();s.position.set((sl-1)*LW,1.3,z);
     s.userData.collected=false;S.add(s);strs.push(s);
   }
-  // Enemy spawn: rate varies by stage
+  // Enemy spawn: rate varies by stage, minimum 5-row gap between enemies
   const sg=STAGES[selStage];
   const eRate=sg.enemyRate||0.12;
-  if(idx>6&&idx<courseData.length-8&&ls.length>=2&&Math.random()<eRate){
+  const lastEnemyRow=spawnRow._lastEnemyRow||0;
+  if(idx>6&&idx<courseData.length-8&&ls.length>=2&&(idx-lastEnemyRow)>=5&&Math.random()<eRate){
     const el=ls[Math.floor(Math.random()*ls.length)];
     const e=mkEnemy(sg.enemyType);
     e.position.set((el-1)*LW,0.35,z);
     e.userData.lane=el;e.userData.hit=false;
-    e.userData.originX=(el-1)*LW; // remember spawn x for movement
+    e.userData.originX=(el-1)*LW;
     S.add(e);enemies.push(e);
+    spawnRow._lastEnemyRow=idx;
   }
   // Wing item: spawned separately in genLevel() (1/3 chance, early stage only)
 }
@@ -1021,6 +1237,7 @@ function genLevel(){
 
   courseData=designCourse(goalDist,diff);
   totalRows=courseData.length;
+  spawnRow._lastEnemyRow=0; // reset enemy spacing tracker each level
 
   for(let i=0;i<totalRows;i++){
     spawnRow(nextZ,rowIdx);rowIdx++;nextZ-=RS;
@@ -1151,7 +1368,18 @@ function update(){
   enemies.forEach(e=>e.position.z+=curSPD);
   wings.forEach(w=>w.position.z+=curSPD);
   items.forEach(it=>it.position.z+=curSPD);
-  if(goal)goal.position.z+=curSPD;
+  if(goal){
+    goal.position.z+=curSPD;
+    // Animate goal decorations
+    goal.children.forEach(c=>{
+      if(c.userData.spin) c.rotation.y+=0.03;
+      if(c.userData.sparkle){
+        const ph=c.userData.sparklePhase||0;
+        c.position.y=3.0+Math.sin(rt*1.5+ph)*1.2;
+        c.material.opacity=0.3+Math.sin(rt*3+ph)*0.3;
+      }
+    });
+  }
 
   plats=plats.filter(p=>{if(p.position.z>8){S.remove(p);return false}return true});
 
@@ -1346,7 +1574,11 @@ function update(){
 
   // Goal reached
   if(goal&&Math.abs(goal.position.z)<3){
-    burst(goal.position,0xFF69B4,12);
+    const gc=STAGES[selStage].tc;
+    burst(goal.position.clone(),gc,15);
+    burst(goal.position.clone().add(new THREE.Vector3(0,2,0)),0xFFD700,12);
+    burst(goal.position.clone().add(new THREE.Vector3(-1,1,0)),gc,8);
+    burst(goal.position.clone().add(new THREE.Vector3(1,1,0)),gc,8);
     curLevel++;
     if(curLevel>=5){
       // Stage complete!
@@ -1482,6 +1714,13 @@ document.getElementById('start-btn').addEventListener('click',()=>{
 
 document.getElementById('back-btn').addEventListener('click',()=>{
   showScreen('title-screen');st='title';
+});
+
+document.getElementById('item-help-btn').addEventListener('click',()=>{
+  document.getElementById('item-guide').style.display='flex';
+});
+document.getElementById('ig-close-btn').addEventListener('click',()=>{
+  document.getElementById('item-guide').style.display='none';
 });
 
 function startStage(idx){
