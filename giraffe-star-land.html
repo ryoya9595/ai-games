@@ -81,9 +81,9 @@ canvas{display:block}
   <div id="title-giraffe">🦒</div>
   <button id="start-btn">START</button>
   <div id="title-info">
-    <span class="kb-only">← → でレーン移動　スペース でジャンプ</span>
-    <span class="touch-only">◀ ▶ でレーン移動　JUMP でジャンプ</span>
-    <br>★ を集めて ゴール を目指そう！<br>落ちたらゲームオーバー！
+    <span class="kb-only">← → でレーン移動　スペース でジャンプ（2段OK！）</span>
+    <span class="touch-only">◀ ▶ でレーン移動　JUMP でジャンプ（2段OK！）</span>
+    <br>★ を集めて ゴール を目指そう！🪽で3段ジャンプ！<br>👾敵に注意！ 落ちたらゲームオーバー！
   </div>
 </div>
 <div id="stage-select">
@@ -110,6 +110,11 @@ const LW=2.4, SPD=0.12, GRAV=-0.02, JMPV=0.32, GY=0.8, RS=2.8;
 /* ===== State ===== */
 let st='title', score=0, selStage=0, curLevel=0, vy=0, og=true, lane=1, rt=0, lnCD=0;
 let courseData=[], rowIdx=0, totalRows=0, nextZ=0;
+// Double jump: jumpCount tracks jumps (0=grounded, 1=first jump, 2=double jumped)
+let jumpCount=0, maxJumps=2, jumpKeyReleased=true;
+// Wing power-up: grants triple jump for 10s
+let hasWings=false, wingTimer=0;
+let enemies=[], wings=[];  // enemy meshes, wing item meshes
 
 const K={};
 document.addEventListener('keydown',e=>{K[e.code]=true;['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)&&e.preventDefault()});
@@ -211,6 +216,57 @@ function mkDirtTex(baseColor){
   const tex=new THREE.CanvasTexture(cv2);tex.wrapS=tex.wrapT=THREE.RepeatWrapping;return tex;
 }
 
+/* ===== Brick/Stone Texture for Island Sides ===== */
+function mkBrickTex(baseColor){
+  const cv2=document.createElement('canvas');cv2.width=128;cv2.height=128;
+  const ctx=cv2.getContext('2d');
+  const r=(baseColor>>16)&0xff, g2=(baseColor>>8)&0xff, b=baseColor&0xff;
+  // Background fill
+  ctx.fillStyle=`rgb(${r},${g2},${b})`;ctx.fillRect(0,0,128,128);
+  // Draw brick rows
+  const bh=16; // brick height
+  for(let row=0;row<8;row++){
+    const yy=row*bh;
+    const offset=(row%2===0)?0:20; // stagger every other row
+    const bw=32+Math.random()*8; // brick width varies
+    for(let x=-bw;x<140;x+=bw+2){
+      const xx=x+offset;
+      // Brick fill with slight color variation
+      const shade=Math.random()*30-15;
+      const br=Math.max(0,Math.min(255,r+shade+8));
+      const bg=Math.max(0,Math.min(255,g2+shade+3));
+      const bb=Math.max(0,Math.min(255,b+shade));
+      ctx.fillStyle=`rgb(${br|0},${bg|0},${bb|0})`;
+      ctx.fillRect(xx+1,yy+1,bw-2,bh-2);
+      // Brick highlight (top-left edges)
+      ctx.fillStyle=`rgba(255,255,255,0.08)`;
+      ctx.fillRect(xx+1,yy+1,bw-2,2);
+      ctx.fillRect(xx+1,yy+1,2,bh-2);
+      // Brick shadow (bottom-right edges)
+      ctx.fillStyle=`rgba(0,0,0,0.12)`;
+      ctx.fillRect(xx+1,yy+bh-3,bw-2,2);
+      ctx.fillRect(xx+bw-3,yy+1,2,bh-2);
+    }
+    // Mortar line (between rows)
+    ctx.fillStyle=`rgba(${Math.max(0,r-40)},${Math.max(0,g2-35)},${Math.max(0,b-30)},0.6)`;
+    ctx.fillRect(0,yy,128,2);
+  }
+  // Top edge: grass overhang dripping down
+  for(let x=0;x<128;x+=1){
+    const h=2+Math.random()*6;
+    const gr=Math.min(255,r+40), gg=Math.min(255,g2+70), gb=b;
+    ctx.fillStyle=`rgba(${gr},${gg},${gb},${0.3+Math.random()*0.3})`;
+    ctx.fillRect(x,0,1,h);
+  }
+  // Surface noise for realism
+  for(let i=0;i<60;i++){
+    const x=Math.random()*128,y=Math.random()*128;
+    ctx.fillStyle=`rgba(0,0,0,${Math.random()*0.08})`;
+    ctx.fillRect(x,y,2+Math.random()*3,1+Math.random()*2);
+  }
+  const tex=new THREE.CanvasTexture(cv2);tex.wrapS=tex.wrapT=THREE.RepeatWrapping;return tex;
+}
+
 /* ===== Cloud System ===== */
 let clouds=[];
 function mkCloud(col,opa){
@@ -242,18 +298,86 @@ function spawnClouds(){
 }
 
 /* ===== Shared Geometry ===== */
-const platTopGeo=new THREE.BoxGeometry(LW*0.9,0.35,RS*0.88);
-const platSideGeo=new THREE.BoxGeometry(LW*0.9,0.7,RS*0.88);
+// Rounded-rectangle floating island (matches reference game style)
+const PW=LW*0.92, PD=RS*0.9; // platform width, depth
+
+// Helper: create a rounded rectangle Shape
+function mkRoundedRectShape(w,h,r){
+  const s=new THREE.Shape();
+  s.moveTo(-w/2+r,-h/2);
+  s.lineTo(w/2-r,-h/2);
+  s.quadraticCurveTo(w/2,-h/2,w/2,-h/2+r);
+  s.lineTo(w/2,h/2-r);
+  s.quadraticCurveTo(w/2,h/2,w/2-r,h/2);
+  s.lineTo(-w/2+r,h/2);
+  s.quadraticCurveTo(-w/2,h/2,-w/2,h/2-r);
+  s.lineTo(-w/2,-h/2+r);
+  s.quadraticCurveTo(-w/2,-h/2,-w/2+r,-h/2);
+  return s;
+}
+
+const platTopGeo=(()=>{
+  // Rounded-rect grass top with bevel for soft edges
+  const shape=mkRoundedRectShape(PW,PD,0.35);
+  const g=new THREE.ExtrudeGeometry(shape,{depth:0.2,bevelEnabled:true,bevelThickness:0.06,bevelSize:0.06,bevelSegments:3});
+  g.rotateX(-Math.PI/2);
+  g.translate(0,0.1,0);
+  return g;
+})();
+const platBodyGeo=(()=>{
+  // Tapered brick body: top shape wider, bottom slightly narrower
+  const topW=PW, topD=PD, botW=PW*0.85, botD=PD*0.85;
+  const h=0.7;
+  // Build as a custom BufferGeometry (8-sided frustum with rounded rect cross-section)
+  const topShape=mkRoundedRectShape(topW,topD,0.3);
+  const botShape=mkRoundedRectShape(botW,botD,0.2);
+  const topPts=topShape.getPoints(16);
+  const botPts=botShape.getPoints(16);
+  const n=Math.min(topPts.length,botPts.length);
+  const verts=[],indices=[];
+  // Side walls
+  for(let i=0;i<n;i++){
+    verts.push(topPts[i].x,h/2,topPts[i].y);
+    verts.push(botPts[i].x,-h/2,botPts[i].y);
+  }
+  for(let i=0;i<n-1;i++){
+    const a=i*2,b=i*2+1,c=(i+1)*2,d=(i+1)*2+1;
+    indices.push(a,b,c, b,d,c);
+  }
+  // Bottom face (fan from center)
+  const ci=verts.length/3;
+  verts.push(0,-h/2,0);
+  for(let i=0;i<n-1;i++){
+    indices.push(ci,i*2+3,i*2+1);
+  }
+  const geo=new THREE.BufferGeometry();
+  geo.setAttribute('position',new THREE.Float32BufferAttribute(verts,3));
+  geo.setIndex(indices);
+  geo.computeVertexNormals();
+  return geo;
+})();
+// Grass overhang ledge — slightly wider rounded rect, very thin
+const platOverhangGeo=(()=>{
+  const shape=mkRoundedRectShape(PW*1.06,PD*1.06,0.38);
+  const g=new THREE.ExtrudeGeometry(shape,{depth:0.07,bevelEnabled:true,bevelThickness:0.03,bevelSize:0.04,bevelSegments:2});
+  g.rotateX(-Math.PI/2);
+  return g;
+})();
 const starGeo=(()=>{const p=[];for(let i=0;i<10;i++){const r=i%2===0?0.28:0.12;const a=(i/10)*Math.PI*2-Math.PI/2;p.push(new THREE.Vector2(Math.cos(a)*r,Math.sin(a)*r))}return new THREE.ExtrudeGeometry(new THREE.Shape(p),{depth:0.1,bevelEnabled:false})})();
 const starMat=new THREE.MeshLambertMaterial({color:0xFFD700,emissive:0x554400});
 
-let pm={top:null,side:null};
+let pm={top:null,side:null,overhang:null};
 function setPlatMats(si){
   const s=STAGES[si];
   const grassTex=mkGrassTex(s.tc);
-  const dirtTex=mkDirtTex(s.sc);
+  const brickTex=mkBrickTex(s.sc);
   pm.top=new THREE.MeshLambertMaterial({map:grassTex});
-  pm.side=new THREE.MeshLambertMaterial({map:dirtTex});
+  pm.side=new THREE.MeshLambertMaterial({map:brickTex});
+  // Overhang: grass-tinted darker color for depth
+  const r2=(s.tc>>16)&0xff, g2=(s.tc>>8)&0xff, b2=s.tc&0xff;
+  pm.overhang=new THREE.MeshLambertMaterial({
+    color:new THREE.Color(`rgb(${Math.max(0,r2-25)},${Math.min(255,g2+5)},${Math.max(0,b2-20)})`)
+  });
 }
 
 /* ===== Giraffe Model ===== */
@@ -309,8 +433,12 @@ let plats=[],strs=[],goal=null,parts=[];
 
 function mkPlat(){
   const g=new THREE.Group();
+  // Grass overhang ledge (slightly wider, at grass-brick junction)
+  const oh=new THREE.Mesh(platOverhangGeo,pm.overhang);oh.position.y=0.18;g.add(oh);
+  // Grass top (rounded rect with bevel)
   const t=new THREE.Mesh(platTopGeo,pm.top);t.position.y=0.18;g.add(t);
-  const s=new THREE.Mesh(platSideGeo,pm.side);s.position.y=-0.2;g.add(s);
+  // Brick/stone body (tapered frustum)
+  const s=new THREE.Mesh(platBodyGeo,pm.side);s.position.y=-0.17;g.add(s);
   return g;
 }
 function mkStar(){const m=new THREE.Mesh(starGeo,starMat);m.rotation.y=Math.PI/2;return m}
@@ -325,6 +453,87 @@ function mkGoal(){
   const txt=new THREE.Mesh(new THREE.PlaneGeometry(1.6,0.5),new THREE.MeshLambertMaterial({color:0xFFD700,side:THREE.DoubleSide}));
   txt.position.set(0,3.2,0.01);g.add(txt);
   return g;
+}
+
+/* ===== Enemy Model (spiky purple slime) ===== */
+function mkEnemy(){
+  const g=new THREE.Group();
+  const m=c=>new THREE.MeshLambertMaterial({color:c});
+  // Body (purple slime blob)
+  const body=new THREE.Mesh(new THREE.SphereGeometry(0.5,10,8),m(0x8B30B0));
+  body.scale.set(1,0.7,1);body.position.y=0.5;g.add(body);
+  // Eyes (angry)
+  [-1,1].forEach(s=>{
+    const ew=new THREE.Mesh(new THREE.SphereGeometry(0.12,6,6),m(0xffffff));
+    ew.position.set(s*0.18,0.58,0.38);g.add(ew);
+    const ep=new THREE.Mesh(new THREE.SphereGeometry(0.07,6,6),m(0x220000));
+    ep.position.set(s*0.16,0.56,0.44);g.add(ep);
+    // Angry eyebrow
+    const eb=new THREE.Mesh(new THREE.BoxGeometry(0.18,0.04,0.04),m(0x220000));
+    eb.position.set(s*0.18,0.7,0.42);eb.rotation.z=s*-0.4;g.add(eb);
+  });
+  // Spikes on top
+  for(let i=0;i<5;i++){
+    const a=(i/5)*Math.PI*2;
+    const spike=new THREE.Mesh(new THREE.ConeGeometry(0.08,0.3,5),m(0x6B1090));
+    spike.position.set(Math.cos(a)*0.25,0.85,Math.sin(a)*0.25);
+    spike.rotation.x=Math.cos(a)*0.3;spike.rotation.z=-Math.sin(a)*0.3;
+    g.add(spike);
+  }
+  // Warning marker (red X under the enemy)
+  const xMark=new THREE.Mesh(new THREE.PlaneGeometry(0.6,0.6),
+    new THREE.MeshBasicMaterial({color:0xFF0000,transparent:true,opacity:0.5,side:THREE.DoubleSide}));
+  xMark.rotation.x=-Math.PI/2;xMark.position.y=0.02;g.add(xMark);
+  return g;
+}
+
+/* ===== Wing Item Model (glowing feather) ===== */
+function mkWingItem(){
+  const g=new THREE.Group();
+  // Feather/wing shape using two scaled spheres
+  [-1,1].forEach(s=>{
+    const wing=new THREE.Mesh(
+      new THREE.SphereGeometry(0.3,8,6),
+      new THREE.MeshLambertMaterial({color:0x66DDFF,emissive:0x1188AA,transparent:true,opacity:0.85})
+    );
+    wing.scale.set(1.4,0.3,0.7);
+    wing.position.set(s*0.35,0,0);
+    wing.rotation.z=s*0.3;
+    g.add(wing);
+  });
+  // Center orb (golden glow)
+  const orb=new THREE.Mesh(
+    new THREE.SphereGeometry(0.15,8,6),
+    new THREE.MeshLambertMaterial({color:0xFFFF88,emissive:0xAAAA33})
+  );
+  g.add(orb);
+  // Sparkle ring
+  const ring=new THREE.Mesh(
+    new THREE.TorusGeometry(0.4,0.03,6,16),
+    new THREE.MeshBasicMaterial({color:0x66EEFF,transparent:true,opacity:0.5})
+  );
+  ring.rotation.x=Math.PI/2;g.add(ring);
+  return g;
+}
+
+/* ===== Wing visual on giraffe ===== */
+let girWingMeshes=null;
+function addWingsToGiraffe(){
+  if(girWingMeshes||!gir)return;
+  girWingMeshes=new THREE.Group();
+  const wm=new THREE.MeshLambertMaterial({color:0x88EEFF,emissive:0x226688,transparent:true,opacity:0.7});
+  [-1,1].forEach(s=>{
+    const w=new THREE.Mesh(new THREE.SphereGeometry(0.4,8,6),wm);
+    w.scale.set(1.6,0.2,0.9);
+    w.position.set(s*0.7,1.0,0);
+    w.rotation.z=s*0.5;
+    girWingMeshes.add(w);
+  });
+  gir.add(girWingMeshes);
+}
+function removeWingsFromGiraffe(){
+  if(!girWingMeshes||!gir)return;
+  gir.remove(girWingMeshes);girWingMeshes=null;
 }
 
 /* ===== Course Generation (Forces lane movement!) ===== */
@@ -407,15 +616,20 @@ function designCourse(goalDist, difficulty){
     course[i+3]=[side,1];  // transition out
   }
 
-  // --- Gap pass: insert empty rows that REQUIRE jumping ---
-  const gapInterval=Math.max(4,Math.floor(12-difficulty*8));
+  // --- Gap pass: insert gaps (1-row or 2-row) that REQUIRE jumping / double-jumping ---
+  const gapInterval=Math.max(3,Math.floor(8-difficulty*5)); // More frequent gaps
   for(let i=8;i<course.length-8;i+=gapInterval){
     if(course[i].length===0) continue; // already a gap
     course[i]=[]; // empty row = gap!
+    // Higher difficulty → chance of double-gap (requires double jump!)
+    if(difficulty>0.3&&Math.random()<difficulty*0.4&&i+1<course.length-8){
+      course[i+1]=[]; // second empty row → needs double jump to cross
+    }
     // Ensure landing row is wide (2+ lanes)
-    if(i+1<course.length&&course[i+1].length<2){
-      const l=course[i+1][0]!=null?course[i+1][0]:1;
-      course[i+1]=l>0?[l-1,l]:[l,l+1];
+    const landIdx=course[i+1]&&course[i+1].length===0?(i+2):(i+1);
+    if(landIdx<course.length&&course[landIdx].length<2){
+      const l=course[landIdx][0]!=null?course[landIdx][0]:1;
+      course[landIdx]=l>0?[l-1,l]:[l,l+1];
     }
   }
 
@@ -461,11 +675,29 @@ function spawnRow(z,idx){
     const s=mkStar();s.position.set((sl-1)*LW,1.3,z);
     s.userData.collected=false;S.add(s);strs.push(s);
   }
+  // Enemy spawn: ~15% chance on non-start/end rows with 2+ lanes
+  const diff=STAGES[selStage].diff[curLevel]||0.3;
+  if(idx>6&&idx<courseData.length-8&&ls.length>=2&&Math.random()<0.12+diff*0.08){
+    // Place enemy on one lane (not the only path!)
+    const el=ls[Math.floor(Math.random()*ls.length)];
+    const e=mkEnemy();e.position.set((el-1)*LW,0.35,z);
+    e.userData.lane=el;e.userData.hit=false;
+    S.add(e);enemies.push(e);
+  }
+  // Wing item spawn: rare ~3% chance
+  if(idx>8&&idx<courseData.length-10&&Math.random()<0.03){
+    const wl=ls[Math.floor(Math.random()*ls.length)];
+    const w=mkWingItem();w.position.set((wl-1)*LW,1.8,z);
+    w.userData.collected=false;
+    S.add(w);wings.push(w);
+  }
 }
 
 function genLevel(){
   plats.forEach(p=>S.remove(p));plats=[];
   strs.forEach(s=>S.remove(s));strs=[];
+  enemies.forEach(e=>S.remove(e));enemies=[];
+  wings.forEach(w=>S.remove(w));wings=[];
   if(goal)S.remove(goal);parts.forEach(p=>S.remove(p));parts=[];
   nextZ=2;rowIdx=0;
 
@@ -493,13 +725,16 @@ function genLevel(){
 
   goal=mkGoal();goal.position.set(0,0.35,-goalDist);S.add(goal);
   lane=1;holder.position.set(0,GY,0);vy=0;og=true;rt=0;
+  jumpCount=0;jumpKeyReleased=true;hasWings=false;wingTimer=0;removeWingsFromGiraffe();
 }
 
 function updHUD(){
   const sg=STAGES[selStage];
   const tm=TIMES[curLevel];
   const lv=sg.startLv+curLevel;
-  document.getElementById('score-display').textContent='Score: '+score;
+  let scoreText='Score: '+score;
+  if(hasWings) scoreText+='  🪽'+Math.ceil(wingTimer)+'s';
+  document.getElementById('score-display').textContent=scoreText;
   document.getElementById('stage-info').textContent=sg.icon+' '+sg.name+'　Lv.'+lv+'　'+tm.name;
 }
 
@@ -519,7 +754,30 @@ function update(){
   if(lnCD>0)lnCD--;
   if((K.ArrowLeft||K.KeyA||T.left)&&lnCD<=0&&lane>0){lane--;lnCD=10;T.left=false}
   if((K.ArrowRight||K.KeyD||T.right)&&lnCD<=0&&lane<2){lane++;lnCD=10;T.right=false}
-  if((K.Space||K.ArrowUp||K.KeyW||T.jump)&&og){vy=JMPV;og=false;T.jump=false}
+  // Jump: double jump (or triple with wings) — requires key release between jumps
+  const curMaxJumps=hasWings?3:2;
+  const jumpPressed=(K.Space||K.ArrowUp||K.KeyW||T.jump);
+  if(jumpPressed&&jumpKeyReleased&&jumpCount<curMaxJumps){
+    vy=JMPV*(jumpCount===0?1:0.85); // air jumps slightly weaker
+    og=false;jumpCount++;jumpKeyReleased=false;T.jump=false;
+    // Double/triple jump particle burst
+    if(jumpCount>1) burst(holder.position.clone(),hasWings?0x66DDFF:0xFFFFFF,5);
+  }
+  if(!jumpPressed) jumpKeyReleased=true;
+
+  // Wing timer countdown
+  if(hasWings){
+    wingTimer-=1/60;
+    // Update HUD timer display every ~0.5s
+    if(Math.floor(wingTimer*2)!==Math.floor((wingTimer+1/60)*2)) updHUD();
+    if(wingTimer<=0){hasWings=false;maxJumps=2;removeWingsFromGiraffe();updHUD();}
+    // Wing flap animation
+    if(girWingMeshes){
+      girWingMeshes.children.forEach((w,i)=>{
+        w.rotation.z=(i===0?1:-1)*(0.5+Math.sin(rt*6)*0.3);
+      });
+    }
+  }
 
   holder.position.x+=((lane-1)*LW-holder.position.x)*0.35;
   if(!og)vy+=GRAV;
@@ -529,19 +787,54 @@ function update(){
   for(const p of plats){
     if(Math.abs(holder.position.x-p.position.x)<LW*0.47&&Math.abs(p.position.z)<RS*0.52){
       if(vy<=0&&holder.position.y<=GY+0.2&&holder.position.y>GY-2.0){
-        holder.position.y=GY;vy=0;og=true;break;
+        holder.position.y=GY;vy=0;og=true;jumpCount=0;break;
       }
     }
   }
 
   plats.forEach(p=>p.position.z+=SPD);
   strs.forEach(s=>s.position.z+=SPD);
+  enemies.forEach(e=>e.position.z+=SPD);
+  wings.forEach(w=>w.position.z+=SPD);
   if(goal)goal.position.z+=SPD;
 
   plats=plats.filter(p=>{if(p.position.z>8){S.remove(p);return false}return true});
 
   // Clouds drift slowly
   clouds.forEach(c=>{c.position.x+=0.008;c.position.z+=SPD*0.3;if(c.position.x>45)c.position.x=-45});
+
+  // Enemy collision: land on enemy = game over
+  for(const e of enemies){
+    if(e.userData.hit)continue;
+    e.rotation.y+=0.04; // spin slowly
+    // Bounce animation
+    e.children[0].position.y=0.5+Math.sin(rt*3)*0.08;
+    if(Math.abs(holder.position.x-e.position.x)<LW*0.4&&Math.abs(e.position.z)<RS*0.5){
+      if(holder.position.y<GY+0.5&&holder.position.y>GY-2.0){
+        e.userData.hit=true;
+        burst(e.position.clone(),0x8B30B0,10);
+        const lv=STAGES[selStage].startLv+curLevel;
+        showO('💀 敵にやられた！','Lv.'+lv+' スコア: '+score+'\nクリックでステージ選択へ');
+        st='gameOver';return;
+      }
+    }
+  }
+  enemies=enemies.filter(e=>{if(e.position.z>8){S.remove(e);return false}return!e.userData.hit});
+
+  // Wing item collection
+  wings.forEach(w=>{
+    if(w.userData.collected)return;
+    w.rotation.y+=0.08;
+    w.position.y=1.8+Math.sin(rt*2)*0.2;
+    if(holder.position.distanceTo(w.position)<1.8){
+      w.userData.collected=true;
+      hasWings=true;wingTimer=10; // 10 seconds
+      addWingsToGiraffe();
+      burst(w.position.clone(),0x66DDFF,12);
+      S.remove(w);updHUD();
+    }
+  });
+  wings=wings.filter(w=>{if(w.position.z>8){S.remove(w);return false}return!w.userData.collected});
 
   strs.forEach(s=>{
     if(s.userData.collected)return;
@@ -610,9 +903,12 @@ function cleanupGame(){
   if(gir)holder.remove(gir);
   plats.forEach(p=>S.remove(p));plats=[];
   strs.forEach(s=>S.remove(s));strs=[];
+  enemies.forEach(e=>S.remove(e));enemies=[];
+  wings.forEach(w=>S.remove(w));wings=[];
   if(goal){S.remove(goal);goal=null}
   parts.forEach(p=>S.remove(p));parts=[];
   clouds.forEach(c=>S.remove(c));clouds=[];
+  hasWings=false;wingTimer=0;removeWingsFromGiraffe();
 }
 
 /* ===== Stage Select Screen ===== */
