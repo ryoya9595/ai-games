@@ -11,12 +11,43 @@ canvas{display:block}
 #hud{position:fixed;top:0;left:0;right:0;pointer-events:none;z-index:10;display:none}
 #score-display{position:absolute;top:20px;right:24px;color:#fff;font-size:22px;font-weight:bold;text-shadow:0 2px 6px rgba(0,0,0,0.5)}
 #stage-info{position:absolute;top:22px;left:50%;transform:translateX(-50%);color:#fff;font-size:16px;font-weight:bold;text-shadow:0 2px 6px rgba(0,0,0,0.5);background:rgba(0,0,0,0.3);padding:4px 18px;border-radius:20px;white-space:nowrap}
-#title-screen{position:fixed;inset:0;z-index:20;display:flex;flex-direction:column;align-items:center;justify-content:center;background:linear-gradient(180deg,#87CEEB 0%,#5BA3CF 50%,#90EE90 100%)}
-#title-screen h1{font-size:32px;color:#FF8C00;text-shadow:2px 2px 0 #CC6600}
-#title-screen h2{font-size:56px;color:#DAA520;text-shadow:3px 3px 0 #8B4513;margin-bottom:30px}
-#start-btn{background:#4CAF50;color:#fff;border:none;border-radius:30px;padding:16px 70px;font-size:28px;font-weight:bold;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,0.3)}
+#title-screen{position:fixed;inset:0;z-index:20;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;
+  background:linear-gradient(180deg,#7EC8E3 0%,#87CEEB 35%,#A8E6A0 70%,#6BBF59 85%,#4AA040 100%)}
+#title-bg{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+#title-bg .cloud{position:absolute;background:#fff;border-radius:50%;opacity:0.85;filter:blur(2px)}
+#title-bg .hill{position:absolute;bottom:0;border-radius:50%;background:#5EAF4A}
+#title-bg .hill2{position:absolute;bottom:0;border-radius:50%;background:#4D9A3E}
+#title-bg .rainbow{position:absolute;border-radius:50%;border:8px solid transparent;
+  border-top-color:red;border-right-color:orange;border-bottom-color:yellow;border-left-color:green;opacity:0.3}
+#title-bg .flower{position:absolute;font-size:18px;opacity:0.7}
+#title-bg .tree{position:absolute;bottom:12%}
+#title-bg .tree-trunk{width:12px;height:40px;background:#8B6914;border-radius:3px;margin:0 auto}
+#title-bg .tree-top{width:45px;height:45px;background:#3D8B37;border-radius:50%;margin-bottom:-8px}
+#title-logo{position:relative;z-index:2;text-align:center;margin-bottom:8px}
+#title-logo .stars{font-size:28px;animation:twinkle 2s ease-in-out infinite alternate}
+@keyframes twinkle{0%{opacity:0.5;transform:scale(0.9)}100%{opacity:1;transform:scale(1.1)}}
+#title-logo h1{font-size:38px;margin:0;
+  background:linear-gradient(180deg,#FFE44D 0%,#FF8C00 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  filter:drop-shadow(2px 3px 0 #CC6600) drop-shadow(0 0 12px rgba(255,200,0,0.4));
+  letter-spacing:4px}
+#title-logo h2{font-size:62px;margin:0 0 6px;
+  background:linear-gradient(180deg,#FFD700 0%,#FF6B35 50%,#FF4080 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  filter:drop-shadow(3px 4px 0 #993300) drop-shadow(-1px -1px 0 rgba(255,255,255,0.5)) drop-shadow(0 0 20px rgba(255,150,0,0.5));
+  letter-spacing:6px}
+#title-giraffe{font-size:80px;margin-bottom:10px;position:relative;z-index:2;
+  animation:girBounce 1.5s ease-in-out infinite;filter:drop-shadow(0 4px 8px rgba(0,0,0,0.2))}
+@keyframes girBounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-12px)}}
+#start-btn{position:relative;z-index:2;background:linear-gradient(180deg,#FF6B6B 0%,#EE4444 100%);
+  color:#fff;border:3px solid #fff;border-radius:40px;padding:16px 70px;font-size:28px;font-weight:bold;
+  cursor:pointer;box-shadow:0 6px 20px rgba(200,0,0,0.35),inset 0 2px 4px rgba(255,255,255,0.3);
+  text-shadow:1px 2px 2px rgba(0,0,0,0.3);letter-spacing:4px;
+  animation:btnPulse 2s ease-in-out infinite}
+@keyframes btnPulse{0%,100%{box-shadow:0 6px 20px rgba(200,0,0,0.35)}50%{box-shadow:0 6px 30px rgba(255,100,100,0.6)}}
 #start-btn:active{transform:scale(0.96)}
-#title-info{margin-top:24px;color:rgba(255,255,255,0.9);font-size:15px;text-align:center;line-height:2}
+#title-info{position:relative;z-index:2;margin-top:20px;color:rgba(255,255,255,0.95);font-size:15px;text-align:center;line-height:2;
+  background:rgba(0,0,0,0.15);padding:10px 24px;border-radius:16px;backdrop-filter:blur(4px)}
 #stage-select{position:fixed;inset:0;z-index:20;display:none;flex-direction:column;align-items:center;justify-content:center;background:linear-gradient(180deg,#6BB3D9 0%,#4A90B8 50%,#7EC87E 100%)}
 #stage-select h2{font-size:30px;color:#fff;text-shadow:2px 2px 0 rgba(0,0,0,0.3);margin-bottom:18px}
 .stg-btn{display:block;width:300px;padding:14px 0;margin:7px 0;border:none;border-radius:16px;font-size:19px;font-weight:bold;color:#fff;cursor:pointer;text-align:center;box-shadow:0 3px 12px rgba(0,0,0,0.3);transition:transform 0.12s}
@@ -41,8 +72,13 @@ canvas{display:block}
 </head>
 <body>
 <div id="title-screen">
-  <h1>ふわっと！</h1>
-  <h2>キリンランド</h2>
+  <div id="title-bg"></div>
+  <div id="title-logo">
+    <div class="stars">⭐ ✨ ⭐</div>
+    <h1>ふわっと！</h1>
+    <h2>キリンランド</h2>
+  </div>
+  <div id="title-giraffe">🦒</div>
   <button id="start-btn">START</button>
   <div id="title-info">
     <span class="kb-only">← → でレーン移動　スペース でジャンプ</span>
@@ -589,6 +625,55 @@ function cleanupGame(){
     btn.textContent=sg.icon+' '+sg.name+(i===4?' (激ムズ)':'');
     btn.addEventListener('click',()=>startStage(i));
     container.appendChild(btn);
+  });
+})();
+
+/* ===== Title Background ===== */
+(function buildTitleBg(){
+  const bg=document.getElementById('title-bg');
+  // Hills
+  const h1=document.createElement('div');h1.className='hill';
+  h1.style.cssText='width:140%;height:35%;left:-20%;background:radial-gradient(ellipse at 50% 100%,#5EAF4A 0%,#4D9A3E 60%,#3D8530 100%)';
+  bg.appendChild(h1);
+  const h2=document.createElement('div');h2.className='hill2';
+  h2.style.cssText='width:80%;height:28%;left:50%;background:radial-gradient(ellipse at 50% 100%,#6BC35E 0%,#52A845 100%)';
+  bg.appendChild(h2);
+  const h3=document.createElement('div');h3.className='hill2';
+  h3.style.cssText='width:60%;height:22%;left:-10%;background:radial-gradient(ellipse at 50% 100%,#72CC65 0%,#5AB54D 100%)';
+  bg.appendChild(h3);
+  // Clouds
+  [[10,8,120,50],[75,12,100,40],[45,5,90,35],[25,18,70,28],[85,15,80,30]].forEach(([l,t,w,h])=>{
+    const c=document.createElement('div');c.className='cloud';
+    c.style.cssText=`left:${l}%;top:${t}%;width:${w}px;height:${h}px`;
+    bg.appendChild(c);
+    // Extra puffs
+    for(let i=0;i<2;i++){
+      const p=document.createElement('div');p.className='cloud';
+      p.style.cssText=`left:${l+(Math.random()*6-3)}%;top:${t+(Math.random()*3-1.5)}%;width:${w*0.7}px;height:${h*0.8}px`;
+      bg.appendChild(p);
+    }
+  });
+  // Flowers
+  const flowers=['🌸','🌼','🌻','💐','🌷'];
+  for(let i=0;i<12;i++){
+    const f=document.createElement('div');f.className='flower';
+    f.textContent=flowers[i%flowers.length];
+    f.style.cssText=`left:${5+Math.random()*90}%;bottom:${2+Math.random()*12}%;font-size:${14+Math.random()*12}px;opacity:${0.5+Math.random()*0.3}`;
+    bg.appendChild(f);
+  }
+  // Trees
+  [15,80].forEach(x=>{
+    const t=document.createElement('div');t.className='tree';
+    t.style.left=x+'%';
+    t.innerHTML='<div class="tree-top"></div><div class="tree-trunk"></div>';
+    bg.appendChild(t);
+  });
+  // Extra stars
+  ['⭐','✨','🌟'].forEach((s,i)=>{
+    const el=document.createElement('div');el.className='flower';
+    el.textContent=s;
+    el.style.cssText=`left:${20+i*30}%;top:${10+i*5}%;font-size:20px;opacity:0.5;animation:twinkle ${1.5+i*0.5}s ease-in-out infinite alternate`;
+    bg.appendChild(el);
   });
 })();
 
