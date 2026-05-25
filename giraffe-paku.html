@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>キリンの3Dサバンナラン</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 100%; min-height: 100%; overflow: hidden; }
+  body {
+    min-height: 100vh;
+    background: #78d7f0;
+    color: #fff;
+    font-family: "Hiragino Maru Gothic ProN", "Yu Gothic", sans-serif;
+    user-select: none;
+  }
+  #game {
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    height: 100vh;
+  }
+  .hud {
+    position: fixed;
+    top: 18px;
+    left: 18px;
+    right: 18px;
+    z-index: 2;
+    display: flex;
+    align-items: start;
+    justify-content: space-between;
+    gap: 14px;
+    pointer-events: none;
+  }
+  h1 {
+    font-size: clamp(22px, 4vw, 42px);
+    line-height: 1;
+    color: #fff6b8;
+    text-shadow: 0 3px 0 #7b4a18, 0 12px 28px rgba(0,0,0,0.32);
+  }
+  .meters {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: end;
+    gap: 8px;
+  }
+  .meter {
+    min-width: 92px;
+    padding: 8px 12px;
+    border: 1px solid rgba(255,255,255,0.75);
+    border-radius: 8px;
+    background: rgba(22, 33, 31, 0.42);
+    box-shadow: 0 8px 22px rgba(0,0,0,0.18);
+    backdrop-filter: blur(8px);
+    text-align: center;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+  }
+  .meter b {
+    display: block;
+    margin-top: 2px;
+    color: #fff;
+    font-size: 22px;
+    letter-spacing: 0;
+  }
+  .overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 3;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: rgba(10, 20, 24, 0.34);
+    text-align: center;
+  }
+  .overlay.show { display: flex; }
+  .panel {
+    width: min(520px, 100%);
+    padding: 28px;
+    border: 2px solid rgba(255, 246, 184, 0.9);
+    border-radius: 8px;
+    background: rgba(21, 31, 29, 0.88);
+    box-shadow: 0 22px 70px rgba(0,0,0,0.3);
+  }
+  .panel h2 {
+    margin-bottom: 12px;
+    color: #ffe66d;
+    font-size: clamp(32px, 7vw, 56px);
+    line-height: 1;
+  }
+  .panel p {
+    margin-top: 10px;
+    line-height: 1.7;
+    font-weight: 700;
+  }
+  .guide {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 18px;
+    z-index: 2;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 8px 14px;
+    padding: 0 16px;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 800;
+    text-shadow: 0 2px 6px rgba(0,0,0,0.5);
+    pointer-events: none;
+  }
+  .key {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 32px;
+    height: 28px;
+    padding: 0 9px;
+    border: 1px solid rgba(255,255,255,0.8);
+    border-radius: 6px;
+    background: rgba(255,255,255,0.92);
+    color: #222;
+    text-shadow: none;
+    box-shadow: 0 3px 0 rgba(0,0,0,0.26);
+  }
+  .loading {
+    position: fixed;
+    inset: 0;
+    z-index: 4;
+    display: grid;
+    place-items: center;
+    background: #6ecde3;
+    color: #fff6b8;
+    font-size: 22px;
+    font-weight: 900;
+    text-shadow: 0 2px 0 rgba(0,0,0,0.25);
+  }
+  .loading.hide { display: none; }
+  .cheer {
+    position: fixed;
+    left: 50%;
+    top: 22%;
+    z-index: 2;
+    transform: translate(-50%, -12px) scale(0.92);
+    opacity: 0;
+    padding: 10px 18px;
+    border: 2px solid rgba(255, 246, 184, 0.92);
+    border-radius: 8px;
+    background: rgba(21, 31, 29, 0.72);
+    color: #ffe66d;
+    font-size: clamp(20px, 4vw, 36px);
+    font-weight: 900;
+    text-align: center;
+    text-shadow: 0 3px 0 #6b401c;
+    box-shadow: 0 16px 40px rgba(0,0,0,0.22);
+    backdrop-filter: blur(8px);
+    pointer-events: none;
+    transition: opacity 0.18s ease, transform 0.18s ease;
+  }
+  .cheer.show {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
+  @media (max-width: 720px) {
+    .hud { align-items: stretch; flex-direction: column; }
+    .meters { justify-content: start; }
+    .meter { min-width: 74px; padding: 7px 9px; font-size: 10px; }
+    .meter b { font-size: 18px; }
+    .guide { font-size: 12px; }
+  }
+</style>
+</head>
+<body>
+  <canvas id="game"></canvas>
+  <div class="loading" id="loading">3Dサバンナを準備中...</div>
+  <div class="cheer" id="cheer">10枚ゲット！</div>
+
+  <header class="hud">
+    <h1>キリンの3Dサバンナラン</h1>
+    <div class="meters">
+      <div class="meter">SCORE<b id="score">0</b></div>
+      <div class="meter">LEAF<b id="leaf">0</b></div>
+      <div class="meter">BEST<b id="best">0</b></div>
+    </div>
+  </header>
+
+  <div class="overlay show" id="overlay">
+    <div class="panel">
+      <h2 id="overlayTitle">READY?</h2>
+      <p id="overlayText">前方へ走るキリンを左右に動かして、岩とハイエナを避けながら葉っぱを集める。</p>
+      <p><span class="key">Enter</span> または <span class="key">Space</span> でスタート</p>
+    </div>
+  </div>
+
+  <div class="guide">
+    <span><span class="key">←</span> <span class="key">→</span> レーン移動</span>
+    <span><span class="key">Space</span> ジャンプ</span>
+    <span><span class="key">R</span> リスタート</span>
+  </div>
+
+<script type="module">
+import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.module.js";
+
+const canvas = document.getElementById("game");
+const loading = document.getElementById("loading");
+const overlay = document.getElementById("overlay");
+const overlayTitle = document.getElementById("overlayTitle");
+const overlayText = document.getElementById("overlayText");
+const scoreEl = document.getElementById("score");
+const leafEl = document.getElementById("leaf");
+const bestEl = document.getElementById("best");
+const cheerEl = document.getElementById("cheer");
+
+const LANES = [-3.2, 0, 3.2];
+const ITEM_START_Z = -145;
+const ITEM_REMOVE_Z = 12;
+const ROAD_LENGTH = 190;
+const clock = new THREE.Clock();
+
+let renderer, scene, camera, giraffe, road, roadMarks = [];
+let objects = [];
+let keys = {};
+let lane = 1;
+let targetX = LANES[lane];
+let jumpV = 0;
+let jumpY = 0;
+let running = false;
+let gameOver = false;
+let score = 0;
+let leaves = 0;
+let speed = 23;
+let runTime = 0;
+let spawnTimer = 0;
+let celebrateTimer = 0;
+let nextCelebrateAt = 10;
+let best = Math.floor(Number(localStorage.getItem("giraffe3dBest") || 0));
+bestEl.textContent = best;
+
+init();
+resetWorld();
+animate();
+loading.classList.add("hide");
+
+function init() {
+  renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.shadowMap.enabled = true;
+
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x78d7f0);
+  scene.fog = new THREE.Fog(0x78d7f0, 38, 150);
+
+  camera = new THREE.PerspectiveCamera(62, window.innerWidth / window.innerHeight, 0.1, 260);
+  camera.position.set(0, 6.2, 13);
+  camera.lookAt(0, 2.2, -24);
+
+  const hemi = new THREE.HemisphereLight(0xfff1b7, 0x8b6d35, 2.3);
+  scene.add(hemi);
+
+  const sun = new THREE.DirectionalLight(0xfff2bd, 2.6);
+  sun.position.set(12, 18, 8);
+  sun.castShadow = true;
+  sun.shadow.mapSize.set(2048, 2048);
+  sun.shadow.camera.near = 1;
+  sun.shadow.camera.far = 60;
+  sun.shadow.camera.left = -24;
+  sun.shadow.camera.right = 24;
+  sun.shadow.camera.top = 24;
+  sun.shadow.camera.bottom = -24;
+  scene.add(sun);
+
+  createWorld();
+  giraffe = createGiraffe();
+  giraffe.position.set(0, 0, 4.5);
+  scene.add(giraffe);
+
+  window.addEventListener("resize", resize);
+  window.addEventListener("keydown", onKeyDown);
+  window.addEventListener("keyup", e => { keys[e.key] = false; });
+}
+
+function createWorld() {
+  const ground = new THREE.Mesh(
+    new THREE.PlaneGeometry(220, 260),
+    new THREE.MeshStandardMaterial({ color: 0xd58b3a, roughness: 0.95 })
+  );
+  ground.rotation.x = -Math.PI / 2;
+  ground.position.z = -55;
+  ground.receiveShadow = true;
+  scene.add(ground);
+
+  road = new THREE.Mesh(
+    new THREE.PlaneGeometry(12.5, ROAD_LENGTH),
+    new THREE.MeshStandardMaterial({ color: 0x5d3b23, roughness: 0.9 })
+  );
+  road.rotation.x = -Math.PI / 2;
+  road.position.z = -70;
+  road.position.y = 0.02;
+  road.receiveShadow = true;
+  scene.add(road);
+
+  for (let i = 0; i < 28; i++) {
+    const mark = new THREE.Mesh(
+      new THREE.BoxGeometry(0.24, 0.05, 3.5),
+      new THREE.MeshStandardMaterial({ color: 0xffe66d, roughness: 0.6 })
+    );
+    mark.position.set(-1.62, 0.06, 7 - i * 7);
+    mark.receiveShadow = true;
+    scene.add(mark);
+    roadMarks.push(mark);
+
+    const mark2 = mark.clone();
+    mark2.position.x = 1.62;
+    scene.add(mark2);
+    roadMarks.push(mark2);
+  }
+
+  for (let i = 0; i < 22; i++) {
+    const tree = createTree();
+    const side = i % 2 === 0 ? -1 : 1;
+    tree.position.set(side * (8 + Math.random() * 12), 0, 8 - i * 8.5);
+    tree.scale.setScalar(0.75 + Math.random() * 0.65);
+    scene.add(tree);
+  }
+
+  const sun = new THREE.Mesh(
+    new THREE.SphereGeometry(7, 32, 16),
+    new THREE.MeshBasicMaterial({ color: 0xfff0a0 })
+  );
+  sun.position.set(28, 30, -92);
+  scene.add(sun);
+}
+
+function createTree() {
+  const group = new THREE.Group();
+  const trunk = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.28, 0.42, 5.6, 8),
+    new THREE.MeshStandardMaterial({ color: 0x6e421d, roughness: 0.8 })
+  );
+  trunk.position.y = 2.8;
+  trunk.castShadow = true;
+  group.add(trunk);
+
+  const top = new THREE.Mesh(
+    new THREE.SphereGeometry(2.1, 12, 8),
+    new THREE.MeshStandardMaterial({ color: 0x5f7f2e, roughness: 0.9 })
+  );
+  top.scale.set(1.45, 0.55, 1.05);
+  top.position.y = 5.9;
+  top.castShadow = true;
+  group.add(top);
+  return group;
+}
+
+function createGiraffe() {
+  const group = new THREE.Group();
+  const bodyMat = new THREE.MeshStandardMaterial({ color: 0xf2bc4b, roughness: 0.65 });
+  const spotMat = new THREE.MeshStandardMaterial({ color: 0x6b401c, roughness: 0.72 });
+  const darkMat = new THREE.MeshStandardMaterial({ color: 0x2d1e15, roughness: 0.8 });
+
+  const body = new THREE.Mesh(new THREE.BoxGeometry(1.25, 0.9, 1.9), bodyMat);
+  body.position.y = 1.45;
+  body.castShadow = true;
+  group.add(body);
+
+  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.23, 0.32, 2.9, 9), bodyMat);
+  neck.position.set(0.26, 2.85, -0.62);
+  neck.rotation.x = -0.18;
+  neck.castShadow = true;
+  group.add(neck);
+
+  const head = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.52, 0.76), bodyMat);
+  head.position.set(0.32, 4.35, -0.96);
+  head.castShadow = true;
+  group.add(head);
+
+  const muzzle = new THREE.Mesh(new THREE.BoxGeometry(0.66, 0.34, 0.44), new THREE.MeshStandardMaterial({ color: 0xffd37a, roughness: 0.7 }));
+  muzzle.position.set(0.32, 4.24, -1.48);
+  muzzle.castShadow = true;
+  group.add(muzzle);
+
+  for (const x of [-0.02, 0.58]) {
+    const horn = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 0.42, 8), darkMat);
+    horn.position.set(x, 4.8, -0.98);
+    horn.castShadow = true;
+    group.add(horn);
+  }
+
+  for (const x of [-0.42, 0.42]) {
+    for (const z of [-0.55, 0.55]) {
+      const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.15, 1.45, 8), bodyMat);
+      leg.position.set(x, 0.72, z);
+      leg.castShadow = true;
+      group.add(leg);
+      const hoof = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.18, 0.28), darkMat);
+      hoof.position.set(x, 0.08, z);
+      hoof.castShadow = true;
+      group.add(hoof);
+    }
+  }
+
+  const spots = [
+    [-0.34, 1.82, -0.2], [0.34, 1.64, 0.24], [0.08, 1.95, 0.62],
+    [0.22, 3.18, -0.56], [0.18, 2.55, -0.44], [0.12, 4.36, -0.74]
+  ];
+  for (const [x, y, z] of spots) {
+    const spot = new THREE.Mesh(new THREE.SphereGeometry(0.14, 10, 8), spotMat);
+    spot.scale.set(1.25, 0.6, 0.25);
+    spot.position.set(x, y, z);
+    group.add(spot);
+  }
+
+  const eye = new THREE.Mesh(new THREE.SphereGeometry(0.045, 10, 8), darkMat);
+  eye.position.set(0.66, 4.42, -1.18);
+  group.add(eye);
+
+  group.scale.setScalar(0.76);
+  return group;
+}
+
+function createLeaf(laneIndex, z) {
+  const group = new THREE.Group();
+  const leafMat = new THREE.MeshStandardMaterial({ color: 0x8fe34d, roughness: 0.55, emissive: 0x183800, emissiveIntensity: 0.22 });
+  const leaf = new THREE.Mesh(new THREE.SphereGeometry(0.42, 16, 10), leafMat);
+  leaf.scale.set(0.58, 0.14, 1.0);
+  leaf.rotation.z = -0.6;
+  leaf.castShadow = true;
+  group.add(leaf);
+  const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.7, 6), new THREE.MeshStandardMaterial({ color: 0x3b741e }));
+  stem.rotation.x = Math.PI / 2;
+  stem.position.z = 0.18;
+  group.add(stem);
+  group.position.set(LANES[laneIndex], 1.25, z);
+  group.userData = { kind: "leaf", lane: laneIndex, hit: false };
+  return group;
+}
+
+function createRock(laneIndex, z) {
+  const rock = new THREE.Mesh(
+    new THREE.DodecahedronGeometry(0.72, 0),
+    new THREE.MeshStandardMaterial({ color: 0x70645b, roughness: 0.96 })
+  );
+  rock.position.set(LANES[laneIndex], 0.55, z);
+  rock.scale.set(1.08, 0.72, 0.9);
+  rock.castShadow = true;
+  rock.userData = { kind: "rock", lane: laneIndex, hit: false };
+  return rock;
+}
+
+function createHyena(laneIndex, z) {
+  const group = new THREE.Group();
+  const mat = new THREE.MeshStandardMaterial({ color: 0x696057, roughness: 0.75 });
+  const dark = new THREE.MeshStandardMaterial({ color: 0x201812, roughness: 0.8 });
+  const body = new THREE.Mesh(new THREE.BoxGeometry(1.15, 0.52, 1.3), mat);
+  body.position.y = 0.65;
+  body.castShadow = true;
+  group.add(body);
+  const head = new THREE.Mesh(new THREE.BoxGeometry(0.65, 0.45, 0.56), mat);
+  head.position.set(0, 0.82, 0.86);
+  head.castShadow = true;
+  group.add(head);
+  for (const x of [-0.38, 0.38]) {
+    for (const z2 of [-0.36, 0.36]) {
+      const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.55, 6), dark);
+      leg.position.set(x, 0.28, z2);
+      leg.castShadow = true;
+      group.add(leg);
+    }
+  }
+  group.position.set(LANES[laneIndex], 0, z);
+  group.userData = { kind: "hyena", lane: laneIndex, hit: false };
+  return group;
+}
+
+function resetWorld() {
+  for (const obj of objects) scene.remove(obj);
+  objects = [];
+  lane = 1;
+  targetX = LANES[lane];
+  jumpV = 0;
+  jumpY = 0;
+  score = 0;
+  leaves = 0;
+  speed = 23;
+  runTime = 0;
+  spawnTimer = 0;
+  celebrateTimer = 0;
+  nextCelebrateAt = 10;
+  running = false;
+  gameOver = false;
+  giraffe.position.set(0, 0, 4.5);
+  giraffe.rotation.set(0, 0, 0);
+  cheerEl.classList.remove("show");
+  showOverlay("READY?", "前方へ走るキリンを左右に動かして、岩とハイエナを避けながら葉っぱを集める。");
+  updateHud();
+}
+
+function start() {
+  if (gameOver) resetWorld();
+  running = true;
+  gameOver = false;
+  overlay.classList.remove("show");
+}
+
+function finish() {
+  running = false;
+  gameOver = true;
+  const finalScore = Math.floor(score);
+  if (finalScore > best) {
+    best = finalScore;
+    localStorage.setItem("giraffe3dBest", String(best));
+  }
+  updateHud();
+  showOverlay("GAME OVER", `スコア ${finalScore} / 葉っぱ ${leaves}枚。Enter / Space で再挑戦。`);
+}
+
+function showOverlay(title, text) {
+  overlayTitle.textContent = title;
+  overlayText.textContent = text;
+  overlay.classList.add("show");
+}
+
+function spawnObject() {
+  const occupied = new Set();
+  const dangerLane = Math.floor(Math.random() * 3);
+  const danger = Math.random() < 0.34 ? createHyena(dangerLane, ITEM_START_Z) : createRock(dangerLane, ITEM_START_Z);
+  scene.add(danger);
+  objects.push(danger);
+  occupied.add(dangerLane);
+
+  const leafCount = Math.random() < 0.42 ? 2 : 1;
+  for (let i = 0; i < leafCount; i++) {
+    const candidates = [0, 1, 2].filter(v => !occupied.has(v) || Math.random() < 0.35);
+    const leafLane = candidates[Math.floor(Math.random() * candidates.length)];
+    const leaf = createLeaf(leafLane, ITEM_START_Z - i * 8);
+    scene.add(leaf);
+    objects.push(leaf);
+  }
+}
+
+function triggerCelebration() {
+  celebrateTimer = 1.35;
+  cheerEl.textContent = `${leaves}枚ゲット！`;
+  cheerEl.classList.add("show");
+  setTimeout(() => cheerEl.classList.remove("show"), 950);
+}
+
+function update(dt) {
+  if (!running) {
+    giraffe.rotation.y = Math.sin(performance.now() * 0.0014) * 0.04;
+    return;
+  }
+
+  runTime += dt;
+  const targetSpeed = Math.min(64, 23 + runTime * 1.15 + leaves * 0.52);
+  speed += (targetSpeed - speed) * Math.min(1, dt * 1.9);
+  score += dt * speed * 1.9;
+  celebrateTimer = Math.max(0, celebrateTimer - dt);
+
+  if (keys.ArrowLeft || keys.a) moveLane(-1);
+  if (keys.ArrowRight || keys.d) moveLane(1);
+
+  targetX = LANES[lane];
+  giraffe.position.x += (targetX - giraffe.position.x) * Math.min(1, dt * 9);
+  const celebration = celebrateTimer > 0 ? Math.sin((celebrateTimer / 1.35) * Math.PI) : 0;
+  giraffe.rotation.y = celebration * Math.PI;
+  giraffe.rotation.z = (giraffe.position.x - targetX) * -0.05 + Math.sin(performance.now() * 0.024) * 0.1 * celebration;
+
+  if (jumpY > 0 || jumpV > 0) {
+    jumpV -= 20 * dt;
+    jumpY = Math.max(0, jumpY + jumpV * dt);
+    if (jumpY === 0) jumpV = 0;
+  }
+  giraffe.position.y = jumpY + Math.abs(Math.sin(performance.now() * 0.014)) * 0.07 + Math.sin(performance.now() * 0.032) * 0.18 * celebration;
+
+  for (const mark of roadMarks) {
+    mark.position.z += speed * dt;
+    if (mark.position.z > 13) mark.position.z -= 196;
+  }
+
+  spawnTimer -= dt;
+  if (spawnTimer <= 0) {
+    spawnObject();
+    spawnTimer = Math.max(0.52, 1.24 - speed * 0.014);
+  }
+
+  for (const obj of objects) {
+    obj.position.z += speed * dt;
+    if (obj.userData.kind === "leaf") obj.rotation.y += dt * 4.3;
+    if (obj.userData.kind === "hyena") obj.rotation.x = Math.sin(performance.now() * 0.013 + obj.position.z) * 0.05;
+
+    const dz = Math.abs(obj.position.z - giraffe.position.z);
+    const sameLane = Math.abs(obj.position.x - giraffe.position.x) < 1.05;
+    if (!obj.userData.hit && sameLane && dz < 1.25) {
+      obj.userData.hit = true;
+      if (obj.userData.kind === "leaf") {
+        leaves += 1;
+        score += 120;
+        obj.visible = false;
+        if (leaves >= nextCelebrateAt) {
+          triggerCelebration();
+          nextCelebrateAt += 10;
+        }
+      } else if (jumpY < 0.78) {
+        finish();
+      }
+    }
+  }
+
+  objects = objects.filter(obj => {
+    if (obj.position.z > ITEM_REMOVE_Z || !obj.visible) {
+      scene.remove(obj);
+      return false;
+    }
+    return true;
+  });
+
+  camera.position.x += (giraffe.position.x * 0.2 - camera.position.x) * dt * 2;
+  camera.lookAt(giraffe.position.x * 0.32, 2.4, -24);
+  updateHud();
+}
+
+let laneLock = 0;
+function moveLane(dir) {
+  const now = performance.now();
+  if (now < laneLock) return;
+  const next = Math.max(0, Math.min(2, lane + dir));
+  if (next !== lane) {
+    lane = next;
+    laneLock = now + 140;
+  }
+}
+
+function jump() {
+  if (!running) return;
+  if (jumpY <= 0.02) {
+    jumpV = 8.1;
+    jumpY = 0.03;
+  }
+}
+
+function updateHud() {
+  scoreEl.textContent = Math.floor(score);
+  leafEl.textContent = leaves;
+  bestEl.textContent = best;
+}
+
+function animate() {
+  const dt = Math.min(0.033, clock.getDelta());
+  update(dt);
+  renderer.render(scene, camera);
+  requestAnimationFrame(animate);
+}
+
+function onKeyDown(e) {
+  keys[e.key] = true;
+  if (["ArrowLeft", "ArrowRight", " ", "Enter"].includes(e.key)) e.preventDefault();
+  if ((e.key === "Enter" || e.key === " ") && (!running || gameOver)) start();
+  else if (e.key === " ") jump();
+  if (e.key.toLowerCase() === "r") {
+    resetWorld();
+    start();
+  }
+}
+
+function resize() {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+}
+</script>
+</body>
+</html>

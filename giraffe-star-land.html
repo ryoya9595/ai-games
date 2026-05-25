@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ふわっと！キリンランド</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#000;overflow:hidden;font-family:'Hiragino Maru Gothic ProN','Yu Gothic',sans-serif}
+canvas{display:block}
+#hud{position:fixed;top:0;left:0;right:0;pointer-events:none;z-index:10;display:none}
+#score-display{position:absolute;top:20px;right:24px;color:#fff;font-size:22px;font-weight:bold;text-shadow:0 2px 6px rgba(0,0,0,0.5)}
+#stage-info{position:absolute;top:22px;left:50%;transform:translateX(-50%);color:#fff;font-size:16px;font-weight:bold;text-shadow:0 2px 6px rgba(0,0,0,0.5);background:rgba(0,0,0,0.3);padding:4px 18px;border-radius:20px;white-space:nowrap}
+#title-screen{position:fixed;inset:0;z-index:20;display:flex;flex-direction:column;align-items:center;justify-content:center;background:linear-gradient(180deg,#87CEEB 0%,#5BA3CF 50%,#90EE90 100%)}
+#title-screen h1{font-size:32px;color:#FF8C00;text-shadow:2px 2px 0 #CC6600}
+#title-screen h2{font-size:56px;color:#DAA520;text-shadow:3px 3px 0 #8B4513;margin-bottom:30px}
+#start-btn{background:#4CAF50;color:#fff;border:none;border-radius:30px;padding:16px 70px;font-size:28px;font-weight:bold;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,0.3)}
+#start-btn:active{transform:scale(0.96)}
+#title-info{margin-top:24px;color:rgba(255,255,255,0.9);font-size:15px;text-align:center;line-height:2}
+#stage-select{position:fixed;inset:0;z-index:20;display:none;flex-direction:column;align-items:center;justify-content:center;background:linear-gradient(180deg,#6BB3D9 0%,#4A90B8 50%,#7EC87E 100%)}
+#stage-select h2{font-size:30px;color:#fff;text-shadow:2px 2px 0 rgba(0,0,0,0.3);margin-bottom:18px}
+.stg-btn{display:block;width:300px;padding:14px 0;margin:7px 0;border:none;border-radius:16px;font-size:19px;font-weight:bold;color:#fff;cursor:pointer;text-align:center;box-shadow:0 3px 12px rgba(0,0,0,0.3);transition:transform 0.12s}
+.stg-btn:active{transform:scale(0.95)}
+.stg-btn.death{animation:pulse 1.5s ease-in-out infinite}
+@keyframes pulse{0%,100%{box-shadow:0 3px 12px rgba(0,0,0,0.3)}50%{box-shadow:0 3px 20px rgba(255,0,0,0.5)}}
+#back-btn{margin-top:14px;background:rgba(255,255,255,0.25);border:2px solid rgba(255,255,255,0.4);color:#fff;padding:10px 36px;border-radius:20px;font-size:16px;cursor:pointer}
+#overlay{position:fixed;inset:0;z-index:15;display:none;flex-direction:column;align-items:center;justify-content:center;background:rgba(0,0,0,0.6);cursor:pointer}
+#overlay h2{color:#FFD700;font-size:40px;text-shadow:2px 2px 0 rgba(0,0,0,0.5);margin-bottom:14px}
+#overlay p{color:#fff;font-size:18px;text-align:center;line-height:1.6}
+/* ===== Touch Controls UI ===== */
+#touch-controls{position:fixed;bottom:0;left:0;right:0;z-index:12;display:none;justify-content:center;align-items:flex-end;padding:0 12px 20px;pointer-events:none;gap:10px}
+.tc-btn{pointer-events:auto;width:80px;height:80px;border:none;border-radius:50%;font-size:32px;font-weight:bold;color:#fff;background:rgba(255,255,255,0.25);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);border:2px solid rgba(255,255,255,0.35);cursor:pointer;display:flex;align-items:center;justify-content:center;user-select:none;-webkit-user-select:none;touch-action:manipulation;transition:background 0.08s}
+.tc-btn:active,.tc-btn.pressed{background:rgba(255,255,255,0.5)}
+#tc-jump{width:100px;height:100px;font-size:28px;margin:0 8px;background:rgba(255,200,50,0.3);border-color:rgba(255,200,50,0.5)}
+#tc-jump:active,#tc-jump.pressed{background:rgba(255,200,50,0.55)}
+.tc-side{display:flex;flex-direction:column;gap:8px;align-items:center}
+.touch-only{display:none}
+@media (pointer:coarse){.kb-only{display:none}.touch-only{display:inline}}
+@media (min-width:769px) and (pointer:fine){#touch-controls{display:none!important}}
+</style>
+</head>
+<body>
+<div id="title-screen">
+  <h1>ふわっと！</h1>
+  <h2>キリンランド</h2>
+  <button id="start-btn">START</button>
+  <div id="title-info">
+    <span class="kb-only">← → でレーン移動　スペース でジャンプ</span>
+    <span class="touch-only">◀ ▶ でレーン移動　JUMP でジャンプ</span>
+    <br>★ を集めて ゴール を目指そう！<br>落ちたらゲームオーバー！
+  </div>
+</div>
+<div id="stage-select">
+  <h2>ステージ選択</h2>
+  <div id="stage-buttons"></div>
+  <button id="back-btn">← もどる</button>
+</div>
+<div id="hud">
+  <div id="stage-info"></div>
+  <div id="score-display">Score: 0</div>
+</div>
+<div id="overlay"><h2 id="ot"></h2><p id="os"></p></div>
+<div id="touch-controls">
+  <button class="tc-btn" id="tc-left">◀</button>
+  <button class="tc-btn" id="tc-jump">JUMP</button>
+  <button class="tc-btn" id="tc-right">▶</button>
+</div>
+<canvas id="c"></canvas>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+/* ===== Constants ===== */
+const LW=2.4, SPD=0.12, GRAV=-0.02, JMPV=0.32, GY=0.8, RS=2.8;
+
+/* ===== State ===== */
+let st='title', score=0, selStage=0, curLevel=0, vy=0, og=true, lane=1, rt=0, lnCD=0;
+let courseData=[], rowIdx=0, totalRows=0, nextZ=0;
+
+const K={};
+document.addEventListener('keydown',e=>{K[e.code]=true;['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)&&e.preventDefault()});
+document.addEventListener('keyup',e=>K[e.code]=false);
+
+/* ===== Stage & Time Definitions ===== */
+const STAGES=[
+  {name:'はらっぱステージ',icon:'🌿',tc:0x5CB85C,sc:0x8B6914,btn:'#4CAF50',
+   dists:[60,75,90,110,130], diff:[0.15,0.30,0.50,0.68,0.82], startLv:1},
+  {name:'おそらステージ',icon:'☁️',tc:0xE8A035,sc:0x795548,btn:'#2196F3',
+   dists:[65,80,95,115,135], diff:[0.20,0.38,0.55,0.72,0.88], startLv:1},
+  {name:'ほしぞらステージ',icon:'⭐',tc:0x7B5EA7,sc:0x37474F,btn:'#7B5EA7',
+   dists:[70,85,100,120,140], diff:[0.25,0.42,0.60,0.78,0.92], startLv:1},
+  {name:'マウンテンステージ',icon:'⛰️',tc:0x8B7355,sc:0x5D4E37,btn:'#6D5B3B',
+   dists:[75,90,110,130,150], diff:[0.30,0.48,0.65,0.82,0.95], startLv:1},
+  {name:'デスステージ',icon:'💀',tc:0x8B0000,sc:0x2F2F2F,btn:'#6B0000',
+   dists:[100,120,140,165,190], diff:[0.55,0.68,0.78,0.90,1.0], startLv:6},
+];
+
+const TIMES=[
+  {name:'あさ',   sky:0xFFA57A,fog:0xFFC09F,ambI:0.65,dlI:0.7},
+  {name:'ひる',   sky:0x87CEEB,fog:0xA8D8EA,ambI:0.7,dlI:0.8},
+  {name:'ゆうがた',sky:0xE85530,fog:0xEE7755,ambI:0.5,dlI:0.6},
+  {name:'よる',   sky:0x0E0E30,fog:0x1A1A40,ambI:0.3,dlI:0.4},
+  {name:'よあけ', sky:0xC89FD0,fog:0xD5B0DD,ambI:0.55,dlI:0.65},
+];
+
+/* ===== THREE.js Setup ===== */
+const cv=document.getElementById('c');
+const R=new THREE.WebGLRenderer({canvas:cv,antialias:false});
+R.setSize(innerWidth,innerHeight);R.setPixelRatio(1);R.shadowMap.enabled=false;
+
+const S=new THREE.Scene();
+const cam=new THREE.PerspectiveCamera(50,innerWidth/innerHeight,0.5,120);
+cam.position.set(0,5,6.5);cam.lookAt(0,0,-4);
+
+const ambLight=new THREE.AmbientLight(0xffffff,0.6);S.add(ambLight);
+const dl=new THREE.DirectionalLight(0xffffff,0.7);dl.position.set(4,10,6);S.add(dl);
+
+/* ===== Procedural Textures ===== */
+function mkGrassTex(baseColor){
+  const cv2=document.createElement('canvas');cv2.width=128;cv2.height=128;
+  const ctx=cv2.getContext('2d');
+  const r=(baseColor>>16)&0xff, g2=(baseColor>>8)&0xff, b=baseColor&0xff;
+  // Base gradient
+  const grad=ctx.createLinearGradient(0,0,128,128);
+  grad.addColorStop(0,`rgb(${r},${g2},${b})`);
+  grad.addColorStop(0.5,`rgb(${Math.max(0,r-15)},${Math.min(255,g2+10)},${Math.max(0,b-10)})`);
+  grad.addColorStop(1,`rgb(${Math.max(0,r-8)},${g2},${b})`);
+  ctx.fillStyle=grad;ctx.fillRect(0,0,128,128);
+  // Grass blades
+  for(let i=0;i<300;i++){
+    const x=Math.random()*128,y=Math.random()*128;
+    const shade=Math.random()*40-20;
+    ctx.strokeStyle=`rgb(${Math.max(0,Math.min(255,r+shade-20))},${Math.max(0,Math.min(255,g2+shade+15))},${Math.max(0,Math.min(255,b+shade-15))})`;
+    ctx.lineWidth=0.8+Math.random()*0.5;
+    ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+Math.random()*4-2,y-3-Math.random()*5);ctx.stroke();
+  }
+  // Light spots
+  for(let i=0;i<15;i++){
+    const x=Math.random()*128,y=Math.random()*128;
+    ctx.fillStyle=`rgba(${Math.min(255,r+50)},${Math.min(255,g2+60)},${Math.min(255,b+30)},0.15)`;
+    ctx.beginPath();ctx.arc(x,y,5+Math.random()*8,0,Math.PI*2);ctx.fill();
+  }
+  const tex=new THREE.CanvasTexture(cv2);tex.wrapS=tex.wrapT=THREE.RepeatWrapping;return tex;
+}
+
+function mkDirtTex(baseColor){
+  const cv2=document.createElement('canvas');cv2.width=128;cv2.height=64;
+  const ctx=cv2.getContext('2d');
+  const r=(baseColor>>16)&0xff, g2=(baseColor>>8)&0xff, b=baseColor&0xff;
+  // Vertical gradient (darker at bottom)
+  const grad=ctx.createLinearGradient(0,0,0,64);
+  grad.addColorStop(0,`rgb(${Math.min(255,r+20)},${Math.min(255,g2+15)},${Math.min(255,b+10)})`);
+  grad.addColorStop(0.3,`rgb(${r},${g2},${b})`);
+  grad.addColorStop(1,`rgb(${Math.max(0,r-30)},${Math.max(0,g2-25)},${Math.max(0,b-20)})`);
+  ctx.fillStyle=grad;ctx.fillRect(0,0,128,64);
+  // Dirt spots and stone layers
+  for(let i=0;i<80;i++){
+    const x=Math.random()*128,y=Math.random()*64;
+    const shade=Math.random()*30-15;
+    ctx.fillStyle=`rgba(${Math.max(0,Math.min(255,r+shade))},${Math.max(0,Math.min(255,g2+shade-5))},${Math.max(0,Math.min(255,b+shade-5))},0.4)`;
+    const sz=1+Math.random()*4;
+    ctx.fillRect(x,y,sz,sz*0.6);
+  }
+  // Horizontal strata lines
+  for(let ly=10;ly<60;ly+=12+Math.random()*8){
+    ctx.strokeStyle=`rgba(${Math.max(0,r-25)},${Math.max(0,g2-20)},${Math.max(0,b-15)},0.25)`;
+    ctx.lineWidth=1;ctx.beginPath();
+    ctx.moveTo(0,ly);
+    for(let x=0;x<128;x+=8) ctx.lineTo(x,ly+Math.random()*3-1.5);
+    ctx.stroke();
+  }
+  // Top edge: thin grass overhang
+  ctx.fillStyle=`rgba(${Math.min(255,r+30)},${Math.min(255,g2+50)},${b},0.5)`;
+  for(let x=0;x<128;x+=2){
+    ctx.fillRect(x,0,2,1+Math.random()*3);
+  }
+  const tex=new THREE.CanvasTexture(cv2);tex.wrapS=tex.wrapT=THREE.RepeatWrapping;return tex;
+}
+
+/* ===== Cloud System ===== */
+let clouds=[];
+function mkCloud(col,opa){
+  const g=new THREE.Group();
+  const mat=new THREE.MeshLambertMaterial({color:col||0xffffff,transparent:true,opacity:opa||0.85,fog:false});
+  const n=3+Math.floor(Math.random()*4);
+  for(let i=0;i<n;i++){
+    const s=new THREE.Mesh(new THREE.SphereGeometry(1.5+Math.random()*2,8,6),mat);
+    s.position.set(Math.random()*4-2,Math.random()*1.2-0.6,Math.random()*2-1);
+    s.scale.y=0.5+Math.random()*0.3;
+    g.add(s);
+  }
+  return g;
+}
+function spawnClouds(){
+  clouds.forEach(c=>S.remove(c));clouds=[];
+  // Cloud color based on time of day
+  const tmIdx=typeof curLevel!=='undefined'?curLevel:0;
+  const cloudColors=[0xFFF5EE, 0xFFFFFF, 0xFFCCBB, 0x334466, 0xE8D0F0];
+  const cloudOpacities=[0.8, 0.85, 0.75, 0.35, 0.7];
+  const cc=cloudColors[tmIdx]||0xffffff;
+  const co=cloudOpacities[tmIdx]||0.85;
+  for(let i=0;i<12;i++){
+    const c=mkCloud(cc,co);
+    c.position.set(Math.random()*90-45, 3+Math.random()*4, -20-Math.random()*70);
+    c.scale.set(1+Math.random()*0.8,0.6+Math.random()*0.3,1+Math.random()*0.5);
+    S.add(c);clouds.push(c);
+  }
+}
+
+/* ===== Shared Geometry ===== */
+const platTopGeo=new THREE.BoxGeometry(LW*0.9,0.35,RS*0.88);
+const platSideGeo=new THREE.BoxGeometry(LW*0.9,0.7,RS*0.88);
+const starGeo=(()=>{const p=[];for(let i=0;i<10;i++){const r=i%2===0?0.28:0.12;const a=(i/10)*Math.PI*2-Math.PI/2;p.push(new THREE.Vector2(Math.cos(a)*r,Math.sin(a)*r))}return new THREE.ExtrudeGeometry(new THREE.Shape(p),{depth:0.1,bevelEnabled:false})})();
+const starMat=new THREE.MeshLambertMaterial({color:0xFFD700,emissive:0x554400});
+
+let pm={top:null,side:null};
+function setPlatMats(si){
+  const s=STAGES[si];
+  const grassTex=mkGrassTex(s.tc);
+  const dirtTex=mkDirtTex(s.sc);
+  pm.top=new THREE.MeshLambertMaterial({map:grassTex});
+  pm.side=new THREE.MeshLambertMaterial({map:dirtTex});
+}
+
+/* ===== Giraffe Model ===== */
+function mkGiraffe(){
+  const g=new THREE.Group();
+  const m=c=>new THREE.MeshLambertMaterial({color:c});
+  const body=new THREE.Mesh(new THREE.SphereGeometry(0.45,10,8),m(0xF5C542));
+  body.scale.set(1,0.75,1.4);body.position.set(0,0.8,0);g.add(body);
+  const neck=new THREE.Mesh(new THREE.CylinderGeometry(0.18,0.24,1.1,8),m(0xF5C542));
+  neck.position.set(0,1.65,0.15);neck.rotation.x=0.12;g.add(neck);
+  const head=new THREE.Mesh(new THREE.SphereGeometry(0.3,8,6),m(0xF5C542));
+  head.position.set(0,2.3,0.25);g.add(head);
+  const muz=new THREE.Mesh(new THREE.SphereGeometry(0.18,6,5),m(0xFADA6E));
+  muz.scale.set(0.8,0.7,1);muz.position.set(0,2.22,0.5);g.add(muz);
+  [-1,1].forEach(s=>{
+    const e=new THREE.Mesh(new THREE.SphereGeometry(0.065,6,6),m(0x221100));
+    e.position.set(s*0.15,2.38,0.48);g.add(e);
+    const sh=new THREE.Mesh(new THREE.SphereGeometry(0.028,4,4),m(0xffffff));
+    sh.position.set(s*0.14,2.4,0.52);g.add(sh);
+  });
+  [[0.15,0.95,0.3],[-0.15,0.75,-0.2],[0.08,1.5,0.25],[-0.08,1.8,0.3]].forEach(p=>{
+    const s=new THREE.Mesh(new THREE.SphereGeometry(0.08,5,5),m(0xC89520));
+    s.position.set(...p);g.add(s);
+  });
+  [-1,1].forEach(s=>{
+    const h=new THREE.Mesh(new THREE.CylinderGeometry(0.03,0.04,0.3,5),m(0xC89520));
+    h.position.set(s*0.12,2.6,0.15);g.add(h);
+    const t=new THREE.Mesh(new THREE.SphereGeometry(0.05,5,5),m(0x8B6914));
+    t.position.set(s*0.12,2.78,0.15);g.add(t);
+  });
+  [-1,1].forEach(s=>{
+    const e=new THREE.Mesh(new THREE.SphereGeometry(0.08,5,5),m(0xDAA520));
+    e.scale.set(0.5,1,0.5);e.rotation.z=s*0.4;e.position.set(s*0.26,2.45,0.1);g.add(e);
+  });
+  [-1,1].forEach(s=>{
+    const b=new THREE.Mesh(new THREE.SphereGeometry(0.06,5,5),new THREE.MeshLambertMaterial({color:0xFFAAAA,transparent:true,opacity:0.4}));
+    b.scale.set(1,0.5,0.5);b.position.set(s*0.24,2.25,0.42);g.add(b);
+  });
+  g.legs=[];
+  [[-0.22,0.28,-0.25],[0.22,0.28,-0.25],[-0.22,0.28,0.25],[0.22,0.28,0.25]].forEach(([x,y,z],i)=>{
+    const l=new THREE.Mesh(new THREE.CylinderGeometry(0.07,0.06,0.5,5),m(0xF5C542));
+    l.position.set(x,y,z);g.add(l);
+    const h=new THREE.Mesh(new THREE.CylinderGeometry(0.07,0.08,0.1,5),m(0x8B6914));
+    h.position.set(x,0.02,z);g.add(h);
+    g.legs.push({leg:l,i});
+  });
+  return g;
+}
+
+let gir;
+const holder=new THREE.Group();S.add(holder);
+let plats=[],strs=[],goal=null,parts=[];
+
+function mkPlat(){
+  const g=new THREE.Group();
+  const t=new THREE.Mesh(platTopGeo,pm.top);t.position.y=0.18;g.add(t);
+  const s=new THREE.Mesh(platSideGeo,pm.side);s.position.y=-0.2;g.add(s);
+  return g;
+}
+function mkStar(){const m=new THREE.Mesh(starGeo,starMat);m.rotation.y=Math.PI/2;return m}
+function mkGoal(){
+  const g=new THREE.Group();
+  [-1,1].forEach(s=>{
+    const pole=new THREE.Mesh(new THREE.CylinderGeometry(0.06,0.06,3.5,6),new THREE.MeshLambertMaterial({color:0xdddddd}));
+    pole.position.set(s*1.2,1.75,0);g.add(pole);
+  });
+  const banner=new THREE.Mesh(new THREE.PlaneGeometry(2.4,0.8),new THREE.MeshLambertMaterial({color:0xFF69B4,side:THREE.DoubleSide}));
+  banner.position.set(0,3.2,0);g.add(banner);
+  const txt=new THREE.Mesh(new THREE.PlaneGeometry(1.6,0.5),new THREE.MeshLambertMaterial({color:0xFFD700,side:THREE.DoubleSide}));
+  txt.position.set(0,3.2,0.01);g.add(txt);
+  return g;
+}
+
+/* ===== Course Generation (Forces lane movement!) ===== */
+function designCourse(goalDist, difficulty){
+  const numRows=Math.ceil(goalDist/RS)+8;
+  const course=[];
+
+  // --- Start zone: 3 wide + 2 center ---
+  for(let i=0;i<3;i++) course.push([0,1,2]);
+  for(let i=0;i<2;i++) course.push([1]);
+
+  // --- Generate mandatory path ---
+  const mainRows=numRows-5-6;
+  let pos=1, target=0, stayCount=0;
+  const stayMax=Math.max(1,Math.floor(4-difficulty*3));
+  const path=[];
+
+  for(let i=0;i<mainRows;i++){
+    if(pos===target){
+      stayCount++;
+      if(stayCount>=stayMax){
+        // Pick new target, always different from current
+        if(target===0) target=Math.random()<0.65?2:1;
+        else if(target===2) target=Math.random()<0.65?0:1;
+        else target=Math.random()<0.5?0:2;
+        stayCount=0;
+      }
+    }else{
+      if(pos<target) pos++;
+      else pos--;
+      stayCount=0;
+    }
+    path.push(pos);
+  }
+
+  // --- Convert path to platform lanes ---
+  const narrowProb=0.3+difficulty*0.5; // 0.3~0.8
+  for(let i=0;i<mainRows;i++){
+    const p=path[i];
+    const prevP=i>0?path[i-1]:1;
+    const nextP=i<mainRows-1?path[i+1]:p;
+    const isTransition=(p!==prevP)||(i<mainRows-1&&p!==nextP);
+
+    let lanes;
+    const r=Math.random();
+
+    if(r<narrowProb*0.35){
+      // Single lane
+      lanes=[p];
+      // At transitions, add neighbor for safety
+      if(isTransition){
+        const adj=p!==prevP?prevP:(p>0?p-1:p+1);
+        if(adj>=0&&adj<=2) lanes.push(adj);
+      }
+    }else if(r<narrowProb){
+      // Two lanes: path + one adjacent
+      lanes=[p];
+      const adj=nextP!==p?nextP:(p>0?p-1:p+1);
+      if(adj>=0&&adj<=2) lanes.push(adj);
+      else lanes.push(p>0?p-1:p+1);
+    }else{
+      // Wide: all 3 lanes
+      lanes=[0,1,2];
+    }
+
+    lanes=[...new Set(lanes)].sort();
+    course.push(lanes);
+  }
+
+  // --- End zone: 6 wide rows ---
+  for(let i=0;i<6;i++) course.push([0,1,2]);
+
+  // --- Force-move pass: insert sections that REQUIRE leaving center ---
+  const moveInterval=Math.max(5,Math.floor(10-difficulty*5));
+  for(let i=7;i<course.length-10;i+=moveInterval){
+    const side=(Math.floor(i/moveInterval)%2===0)?0:2;
+    course[i]  =[side,1];  // transition in
+    course[i+1]=[side];    // FORCE off center
+    course[i+2]=[side];    // stay off center
+    course[i+3]=[side,1];  // transition out
+  }
+
+  // --- Gap pass: insert empty rows that REQUIRE jumping ---
+  const gapInterval=Math.max(4,Math.floor(12-difficulty*8));
+  for(let i=8;i<course.length-8;i+=gapInterval){
+    if(course[i].length===0) continue; // already a gap
+    course[i]=[]; // empty row = gap!
+    // Ensure landing row is wide (2+ lanes)
+    if(i+1<course.length&&course[i+1].length<2){
+      const l=course[i+1][0]!=null?course[i+1][0]:1;
+      course[i+1]=l>0?[l-1,l]:[l,l+1];
+    }
+  }
+
+  // --- Validation pass ---
+  for(let i=1;i<course.length;i++){
+    const prev=course[i-1], curr=course[i];
+    if(curr.length===0||prev.length===0) continue; // skip gap rows
+    // 1) Continuity: must share ≥1 lane
+    if(!curr.some(l=>prev.includes(l))){
+      let best=prev[0],bestD=99;
+      for(const pl of prev) for(const cl of curr){
+        const d=Math.abs(pl-cl);if(d<bestD){bestD=d;best=pl;}
+      }
+      curr.push(best);
+    }
+    // 2) No center gap [0,2]
+    if(curr.includes(0)&&curr.includes(2)&&!curr.includes(1)) curr.push(1);
+    // 3) No sudden 3→1 drop: force transition through 2 lanes
+    if(prev.length>=3&&curr.length===1){
+      const s=curr[0]; curr.push(s>0?s-1:s+1);
+    }
+    // 4) No sudden 1→different-1 jump
+    if(prev.length===1&&curr.length===1&&prev[0]!==curr[0]){
+      curr.push(prev[0]);
+    }
+    course[i]=[...new Set(curr)].sort();
+  }
+
+  return course;
+}
+
+/* ===== Level Spawn ===== */
+function spawnRow(z,idx){
+  if(idx>=courseData.length)return;
+  const ls=courseData[idx];
+  ls.forEach(l=>{
+    const p=mkPlat();p.position.set((l-1)*LW,0,z);
+    p.userData.lane=l;S.add(p);plats.push(p);
+  });
+  // Stars on non-start/end rows
+  if(idx>4&&idx<courseData.length-6&&Math.random()>0.4){
+    const sl=ls[Math.floor(Math.random()*ls.length)];
+    const s=mkStar();s.position.set((sl-1)*LW,1.3,z);
+    s.userData.collected=false;S.add(s);strs.push(s);
+  }
+}
+
+function genLevel(){
+  plats.forEach(p=>S.remove(p));plats=[];
+  strs.forEach(s=>S.remove(s));strs=[];
+  if(goal)S.remove(goal);parts.forEach(p=>S.remove(p));parts=[];
+  nextZ=2;rowIdx=0;
+
+  const sg=STAGES[selStage];
+  const tm=TIMES[curLevel];
+  const goalDist=sg.dists[curLevel];
+  const diff=sg.diff[curLevel];
+
+  // Sky & fog by time of day
+  S.background=new THREE.Color(tm.sky);
+  S.fog=new THREE.Fog(tm.sky,30,100);
+  ambLight.intensity=tm.ambI;
+  dl.intensity=tm.dlI;
+
+  // Platform colors by stage
+  setPlatMats(selStage);
+  spawnClouds();
+
+  courseData=designCourse(goalDist,diff);
+  totalRows=courseData.length;
+
+  for(let i=0;i<totalRows;i++){
+    spawnRow(nextZ,rowIdx);rowIdx++;nextZ-=RS;
+  }
+
+  goal=mkGoal();goal.position.set(0,0.35,-goalDist);S.add(goal);
+  lane=1;holder.position.set(0,GY,0);vy=0;og=true;rt=0;
+}
+
+function updHUD(){
+  const sg=STAGES[selStage];
+  const tm=TIMES[curLevel];
+  const lv=sg.startLv+curLevel;
+  document.getElementById('score-display').textContent='Score: '+score;
+  document.getElementById('stage-info').textContent=sg.icon+' '+sg.name+'　Lv.'+lv+'　'+tm.name;
+}
+
+function burst(pos,col,n){
+  for(let i=0;i<n;i++){
+    const p=new THREE.Mesh(new THREE.BoxGeometry(0.1,0.1,0.1),new THREE.MeshBasicMaterial({color:col}));
+    p.position.copy(pos);
+    p.userData.v=new THREE.Vector3((Math.random()-0.5)*0.25,Math.random()*0.2+0.05,(Math.random()-0.5)*0.25);
+    p.userData.life=1;S.add(p);parts.push(p);
+  }
+}
+
+/* ===== Game Loop ===== */
+function update(){
+  if(st!=='playing')return;
+  rt+=0.12;
+  if(lnCD>0)lnCD--;
+  if((K.ArrowLeft||K.KeyA||T.left)&&lnCD<=0&&lane>0){lane--;lnCD=10;T.left=false}
+  if((K.ArrowRight||K.KeyD||T.right)&&lnCD<=0&&lane<2){lane++;lnCD=10;T.right=false}
+  if((K.Space||K.ArrowUp||K.KeyW||T.jump)&&og){vy=JMPV;og=false;T.jump=false}
+
+  holder.position.x+=((lane-1)*LW-holder.position.x)*0.35;
+  if(!og)vy+=GRAV;
+  holder.position.y+=vy;
+
+  og=false;
+  for(const p of plats){
+    if(Math.abs(holder.position.x-p.position.x)<LW*0.47&&Math.abs(p.position.z)<RS*0.52){
+      if(vy<=0&&holder.position.y<=GY+0.2&&holder.position.y>GY-2.0){
+        holder.position.y=GY;vy=0;og=true;break;
+      }
+    }
+  }
+
+  plats.forEach(p=>p.position.z+=SPD);
+  strs.forEach(s=>s.position.z+=SPD);
+  if(goal)goal.position.z+=SPD;
+
+  plats=plats.filter(p=>{if(p.position.z>8){S.remove(p);return false}return true});
+
+  // Clouds drift slowly
+  clouds.forEach(c=>{c.position.x+=0.008;c.position.z+=SPD*0.3;if(c.position.x>45)c.position.x=-45});
+
+  strs.forEach(s=>{
+    if(s.userData.collected)return;
+    s.rotation.y+=0.06;
+    if(holder.position.distanceTo(s.position)<1.5){
+      s.userData.collected=true;score+=100;
+      burst(s.position,0xFFD700,8);S.remove(s);updHUD();
+    }
+  });
+  strs=strs.filter(s=>{if(s.position.z>8){S.remove(s);return false}return!s.userData.collected});
+
+  // Goal reached
+  if(goal&&Math.abs(goal.position.z)<3){
+    burst(goal.position,0xFF69B4,12);
+    curLevel++;
+    if(curLevel>=5){
+      // Stage complete!
+      showO('🎉 ステージクリア！','スコア: '+score+'\nクリックでステージ選択へ');
+      st='stageClear';
+    }else{
+      const nextTm=TIMES[curLevel];
+      const nextLv=STAGES[selStage].startLv+curLevel;
+      showO('Lv.'+nextLv+' '+nextTm.name+' へ！','');
+      st='levelClear';
+      setTimeout(()=>{genLevel();updHUD();st='playing';hideO()},1800);
+    }
+    return;
+  }
+
+  // Fall = game over
+  if(holder.position.y<-4){
+    const lv=STAGES[selStage].startLv+curLevel;
+    showO('ゲームオーバー','Lv.'+lv+' スコア: '+score+'\nクリックでステージ選択へ');
+    st='gameOver';return;
+  }
+
+  // Giraffe animation
+  if(gir&&gir.legs){
+    gir.legs.forEach(({leg,i})=>{
+      const sw=og?Math.sin(rt*4+(i<2?0:Math.PI)+i*Math.PI)*0.35:0;
+      leg.rotation.x=sw;
+    });
+    gir.rotation.x=og?Math.sin(rt*2)*0.03:-0.15;
+  }
+
+  // Particles
+  for(let i=parts.length-1;i>=0;i--){
+    const p=parts[i];
+    p.position.add(p.userData.v);p.userData.v.y-=0.005;
+    p.userData.life-=0.04;p.scale.setScalar(p.userData.life);
+    if(p.userData.life<=0){S.remove(p);parts.splice(i,1)}
+  }
+
+  cam.position.x+=(holder.position.x*0.35-cam.position.x)*0.06;
+}
+
+/* ===== UI Helpers ===== */
+function showO(t,s){document.getElementById('ot').textContent=t;document.getElementById('os').textContent=s;document.getElementById('overlay').style.display='flex'}
+function hideO(){document.getElementById('overlay').style.display='none'}
+
+function showScreen(id){
+  ['title-screen','stage-select','hud'].forEach(s=>document.getElementById(s).style.display='none');
+  document.getElementById(id).style.display='flex';
+}
+function cleanupGame(){
+  if(gir)holder.remove(gir);
+  plats.forEach(p=>S.remove(p));plats=[];
+  strs.forEach(s=>S.remove(s));strs=[];
+  if(goal){S.remove(goal);goal=null}
+  parts.forEach(p=>S.remove(p));parts=[];
+  clouds.forEach(c=>S.remove(c));clouds=[];
+}
+
+/* ===== Stage Select Screen ===== */
+(function buildStageButtons(){
+  const container=document.getElementById('stage-buttons');
+  STAGES.forEach((sg,i)=>{
+    const btn=document.createElement('button');
+    btn.className='stg-btn'+(i===4?' death':'');
+    btn.style.background=sg.btn;
+    btn.textContent=sg.icon+' '+sg.name+(i===4?' (激ムズ)':'');
+    btn.addEventListener('click',()=>startStage(i));
+    container.appendChild(btn);
+  });
+})();
+
+/* ===== Game Flow ===== */
+document.getElementById('start-btn').addEventListener('click',()=>{
+  showScreen('stage-select');st='select';
+});
+
+document.getElementById('back-btn').addEventListener('click',()=>{
+  showScreen('title-screen');st='title';
+});
+
+function startStage(idx){
+  selStage=idx;curLevel=0;score=0;
+  showScreen('hud');hideO();
+  if(gir)holder.remove(gir);
+  gir=mkGiraffe();holder.add(gir);
+  genLevel();updHUD();st='playing';showTouchUI(true);
+}
+
+document.getElementById('overlay').addEventListener('click',()=>{
+  if(st==='gameOver'||st==='stageClear'){
+    hideO();cleanupGame();showTouchUI(false);
+    showScreen('stage-select');st='select';
+  }
+});
+
+/* ===== Touch Controls ===== */
+const isTouchDevice='ontouchstart'in window||navigator.maxTouchPoints>0;
+const touchCtrl=document.getElementById('touch-controls');
+const tcBtns={left:document.getElementById('tc-left'),right:document.getElementById('tc-right'),jump:document.getElementById('tc-jump')};
+const T={left:false,right:false,jump:false};
+
+function showTouchUI(show){
+  if(isTouchDevice)touchCtrl.style.display=show?'flex':'none';
+}
+
+// Virtual button touch handlers (support multi-touch: move + jump simultaneously)
+function setupTouchBtn(el,key){
+  el.addEventListener('touchstart',e=>{
+    e.preventDefault();e.stopPropagation();
+    T[key]=true;el.classList.add('pressed');
+  },{passive:false});
+  el.addEventListener('touchend',e=>{
+    e.preventDefault();e.stopPropagation();
+    T[key]=false;el.classList.remove('pressed');
+  },{passive:false});
+  el.addEventListener('touchcancel',e=>{
+    T[key]=false;el.classList.remove('pressed');
+  });
+}
+setupTouchBtn(tcBtns.left,'left');
+setupTouchBtn(tcBtns.right,'right');
+setupTouchBtn(tcBtns.jump,'jump');
+
+// Canvas touch fallback (for tapping game area on non-button zones, and for menu screens)
+cv.addEventListener('touchstart',e=>{
+  e.preventDefault();
+  if(st==='title'){showScreen('stage-select');st='select';return}
+  if(st==='gameOver'||st==='stageClear'){document.getElementById('overlay').click();return}
+},{passive:false});
+
+window.addEventListener('resize',()=>{cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix();R.setSize(innerWidth,innerHeight)});
+
+function animate(){requestAnimationFrame(animate);update();R.render(S,cam)}
+animate();
+</script>
+</body>
+</html>

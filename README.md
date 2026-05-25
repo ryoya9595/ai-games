@@ -4,7 +4,7 @@ Claude Codeで作った、ブラウザで遊べるゲーム集です。
 
 ## 🌐 公開URL
 
-https://[username].github.io/ai-games/
+https://ryoya9595.github.io/ai-games/
 
 ## 🕹 収録ゲーム
 
@@ -12,6 +12,17 @@ https://[username].github.io/ai-games/
 - 可愛いキリンの横スクロールアクション
 - 理不尽トラップ満載の鬼畜仕様
 - 二段ジャンプ・煽りマシマシのゲームオーバー画面付き
+
+### 🦒⭐ ふわっと！キリンランド
+- 空の浮島を走る3Dプラットフォーマー
+- 5ステージ×5レベル（はらっぱ/おそら/ほしぞら/マウンテン/デス）
+- 時間帯変化（朝→昼→夕方→夜→よあけ）
+- スマホタッチ操作対応
+
+### 🦒 キリンの3Dサバンナラン
+- 前方へ走るキリンを左右に動かす3Dランナー
+- 岩とハイエナを避けながら葉っぱを回収
+- スコア・ベスト記録・速度アップ付き
 
 ### 🥊 AIツール大乱闘
 - ふっとばし系4体乱闘バトル
@@ -21,8 +32,8 @@ https://[username].github.io/ai-games/
 
 ## 🛠 技術
 
-- Pure HTML/CSS/JavaScript（外部ライブラリなし）
-- Canvas 2D描画
+- Pure HTML/CSS/JavaScript
+- Three.js（3Dゲーム）/ Canvas 2D描画
 - LocalStorage で進捗保存
 
 ## 📝 ライセンス
