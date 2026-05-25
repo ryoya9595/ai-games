@@ -890,13 +890,7 @@ function spawnRow(z,idx){
     e.userData.originX=(el-1)*LW; // remember spawn x for movement
     S.add(e);enemies.push(e);
   }
-  // Wing item spawn: rare ~3% chance
-  if(idx>8&&idx<courseData.length-10&&Math.random()<0.03){
-    const wl=ls[Math.floor(Math.random()*ls.length)];
-    const w=mkWingItem();w.position.set((wl-1)*LW,1.8,z);
-    w.userData.collected=false;
-    S.add(w);wings.push(w);
-  }
+  // Wing item: spawned separately in genLevel() (1/3 chance, early stage only)
 }
 
 function genLevel(){
@@ -931,6 +925,20 @@ function genLevel(){
   }
 
   goal=mkGoal();goal.position.set(0,0.35,-goalDist);S.add(goal);
+
+  // Wing item: 1/3 chance, placed in early part of stage (rows 5~20% of course)
+  if(Math.random()<0.33){
+    const earlyEnd=Math.max(8,Math.floor(totalRows*0.2));
+    const earlyStart=Math.min(5,earlyEnd-1);
+    const wingRow=earlyStart+Math.floor(Math.random()*(earlyEnd-earlyStart));
+    const wingLanes=courseData[wingRow]||[0,1,2];
+    const wl=wingLanes[Math.floor(Math.random()*wingLanes.length)];
+    const wz=2-wingRow*RS;
+    const w=mkWingItem();w.position.set((wl-1)*LW,1.8,wz);
+    w.userData.collected=false;
+    S.add(w);wings.push(w);
+  }
+
   lane=1;holder.position.set(0,GY,0);vy=0;og=true;rt=0;
   jumpCount=0;jumpKeyReleased=true;hasWings=false;wingTimer=0;removeWingsFromGiraffe();
 }
