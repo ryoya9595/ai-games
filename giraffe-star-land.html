@@ -107,140 +107,51 @@ canvas{display:block}
 /* ===== Constants ===== */
 const LW=2.4, SPD=0.12, GRAV=-0.02, JMPV=0.32, GY=0.8, RS=2.8;
 
-/* ===== Procedural BGM (Web Audio API) ===== */
-let bgmCtx=null, bgmGain=null, bgmPlaying=false, bgmNodes=[];
+/* ===== External BGM (Audio File Loader) ===== */
+let bgmAudio=null, bgmPlaying=false;
 
-// Stage music definitions: scale notes, tempo, waveform style
-const BGM_DEFS=[
-  // はらっぱ(初級): bright pop, major scale, cheerful
-  {scale:[261.6,293.7,329.6,349.2,392.0,440.0,493.9,523.3],
-   bass:[130.8,164.8,174.6,196.0], tempo:0.22, wave:'square', bassWave:'triangle',
-   vol:0.08, bassVol:0.06, swing:true},
-  // おそら(初中級): airy & light, pentatonic
-  {scale:[329.6,392.0,440.0,523.3,587.3,659.3,784.0,880.0],
-   bass:[164.8,196.0,220.0,261.6], tempo:0.28, wave:'sine', bassWave:'sine',
-   vol:0.07, bassVol:0.05, swing:false},
-  // ほしぞら(中級): mysterious sparkle, minor scale
-  {scale:[293.7,329.6,349.2,392.0,440.0,466.2,523.3,587.3],
-   bass:[146.8,174.6,196.0,220.0], tempo:0.25, wave:'sine', bassWave:'triangle',
-   vol:0.06, bassVol:0.05, swing:false},
-  // マウンテン(上級): powerful, driving rhythm
-  {scale:[196.0,220.0,246.9,261.6,293.7,329.6,349.2,392.0],
-   bass:[98.0,110.0,130.8,146.8], tempo:0.18, wave:'sawtooth', bassWave:'square',
-   vol:0.05, bassVol:0.06, swing:false},
-  // デス(地獄級): dark, ominous, dissonant
-  {scale:[220.0,233.1,261.6,277.2,311.1,329.6,369.9,415.3],
-   bass:[110.0,116.5,130.8,138.6], tempo:0.20, wave:'sawtooth', bassWave:'sawtooth',
-   vol:0.05, bassVol:0.07, swing:false},
+// Stage BGM file paths (CC0 licensed, no attribution required)
+const BGM_FILES=[
+  'bgm/stage1_harappa.ogg',   // Flowerbed Fields [Loop] by Zane Little Music
+  'bgm/stage2_osora.mp3',     // Happy Adventure (Loop)
+  'bgm/stage3_hoshizora.mp3', // Mysterious Futuristic 8-bit Loop by Frenchyboy
+  'bgm/stage4_mountain.ogg',  // Invincibility [Loop] by Zane Little Music
+  'bgm/stage5_death.ogg',     // 8-Bit Battle Loop by Wolfgang_
 ];
+const BGM_VOLUME=[0.35, 0.4, 0.35, 0.4, 0.35]; // per-stage volume
 
-function initBGM(){
-  if(bgmCtx) return;
-  bgmCtx=new(window.AudioContext||window.webkitAudioContext)();
-  bgmGain=bgmCtx.createGain();
-  bgmGain.gain.value=0.5;
-  bgmGain.connect(bgmCtx.destination);
+// Preload all BGM files for instant playback
+const bgmCache=[];
+function preloadBGM(){
+  BGM_FILES.forEach((src,i)=>{
+    const a=new Audio();
+    a.preload='auto';
+    a.loop=true;
+    a.volume=BGM_VOLUME[i]||0.35;
+    a.src=src;
+    bgmCache[i]=a;
+  });
 }
+preloadBGM();
 
 function stopBGM(){
-  bgmNodes.forEach(n=>{try{n.stop()}catch(e){}});
-  bgmNodes=[];bgmPlaying=false;
+  if(bgmAudio){
+    bgmAudio.pause();
+    bgmAudio.currentTime=0;
+  }
+  bgmPlaying=false;
 }
 
 function playBGM(stageIdx){
-  initBGM();stopBGM();
-  if(bgmCtx.state==='suspended') bgmCtx.resume();
-  const def=BGM_DEFS[stageIdx]||BGM_DEFS[0];
+  stopBGM();
+  const a=bgmCache[stageIdx]||bgmCache[0];
+  a.currentTime=0;
+  a.volume=BGM_VOLUME[stageIdx]||0.35;
+  a.loop=true;
+  const playPromise=a.play();
+  if(playPromise) playPromise.catch(()=>{});
+  bgmAudio=a;
   bgmPlaying=true;
-
-  // Melody sequencer
-  let melodyStep=0;
-  function scheduleMelody(){
-    if(!bgmPlaying)return;
-    const now=bgmCtx.currentTime;
-    const noteLen=def.tempo*0.8;
-
-    // Pick note: mostly sequential with occasional jumps
-    const r=Math.random();
-    if(r<0.6) melodyStep=(melodyStep+1)%def.scale.length;
-    else if(r<0.8) melodyStep=(melodyStep+2)%def.scale.length;
-    else if(r<0.9) melodyStep=Math.max(0,melodyStep-1);
-    else melodyStep=Math.floor(Math.random()*def.scale.length);
-
-    const freq=def.scale[melodyStep];
-
-    // Melody oscillator
-    const osc=bgmCtx.createOscillator();
-    const env=bgmCtx.createGain();
-    osc.type=def.wave;
-    osc.frequency.setValueAtTime(freq,now);
-    env.gain.setValueAtTime(def.vol,now);
-    env.gain.exponentialRampToValueAtTime(0.001,now+noteLen);
-    osc.connect(env);env.connect(bgmGain);
-    osc.start(now);osc.stop(now+noteLen);
-    bgmNodes.push(osc);
-
-    // Schedule next note
-    const interval=def.swing?(def.tempo*(Math.random()*0.3+0.85)):def.tempo;
-    setTimeout(scheduleMelody,interval*1000);
-  }
-
-  // Bass sequencer (slower, root notes)
-  let bassStep=0;
-  function scheduleBass(){
-    if(!bgmPlaying)return;
-    const now=bgmCtx.currentTime;
-    const noteLen=def.tempo*3;
-
-    bassStep=(bassStep+1)%def.bass.length;
-    const freq=def.bass[bassStep];
-
-    const osc=bgmCtx.createOscillator();
-    const env=bgmCtx.createGain();
-    osc.type=def.bassWave;
-    osc.frequency.setValueAtTime(freq,now);
-    env.gain.setValueAtTime(def.bassVol,now);
-    env.gain.exponentialRampToValueAtTime(0.001,now+noteLen);
-    osc.connect(env);env.connect(bgmGain);
-    osc.start(now);osc.stop(now+noteLen);
-    bgmNodes.push(osc);
-
-    setTimeout(scheduleBass,def.tempo*4*1000);
-  }
-
-  // Simple percussion (hi-hat style noise)
-  function schedulePerc(){
-    if(!bgmPlaying)return;
-    const now=bgmCtx.currentTime;
-    const bufSize=bgmCtx.sampleRate*0.03;
-    const buf=bgmCtx.createBuffer(1,bufSize,bgmCtx.sampleRate);
-    const data=buf.getChannelData(0);
-    for(let i=0;i<bufSize;i++) data[i]=(Math.random()*2-1)*0.3;
-    const src=bgmCtx.createBufferSource();
-    src.buffer=buf;
-    const env=bgmCtx.createGain();
-    env.gain.setValueAtTime(0.03,now);
-    env.gain.exponentialRampToValueAtTime(0.001,now+0.03);
-    src.connect(env);env.connect(bgmGain);
-    src.start(now);
-    bgmNodes.push(src);
-
-    setTimeout(schedulePerc,def.tempo*1000);
-  }
-
-  scheduleMelody();
-  setTimeout(scheduleBass,100);
-  setTimeout(schedulePerc,50);
-
-  // Clean up old nodes periodically
-  setInterval(()=>{
-    bgmNodes=bgmNodes.filter(n=>{
-      try{if(n.context.currentTime>0)return true}catch(e){return false}
-      return true;
-    });
-    // Keep only recent 50 nodes
-    if(bgmNodes.length>50) bgmNodes=bgmNodes.slice(-30);
-  },5000);
 }
 
 /* ===== State ===== */
