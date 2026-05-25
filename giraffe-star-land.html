@@ -1044,14 +1044,14 @@ function genLevel(){
     if(type==='wing') wings.push(it);
     else items.push(it);
   }
-  // Wing: 1/3 chance, early (5~20%)
+  // Wing: 1/3 chance, early (5~20%) — triple jump+float+magnet for most of stage
   spawnItem(mkWingItem,'wing',0.33,0.05,0.20);
-  // Barrier: 1/3 chance, mid (25~55%)
-  spawnItem(mkBarrierItem,'barrier',0.33,0.25,0.55);
-  // Star Fever: 1/4 chance, mid (30~60%)
-  spawnItem(mkStarFeverItem,'starFever',0.25,0.30,0.60);
-  // Slow: 1/5 chance, later (50~75%)
-  spawnItem(mkSlowItem,'slow',0.20,0.50,0.75);
+  // Barrier: 1/3 chance, early-mid (15~40%) — shield before enemies get tough
+  spawnItem(mkBarrierItem,'barrier',0.33,0.15,0.40);
+  // Star Fever: 1/4 chance, early-mid (15~45%) — 3x score while stars are plentiful
+  spawnItem(mkStarFeverItem,'starFever',0.25,0.15,0.45);
+  // Slow: 1/5 chance, early-mid (20~45%) — slow down before the hard parts
+  spawnItem(mkSlowItem,'slow',0.20,0.20,0.45);
 
   lane=1;holder.position.set(0,GY,0);vy=0;og=true;rt=0;
   jumpCount=0;jumpKeyReleased=true;
