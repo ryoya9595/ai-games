@@ -90,6 +90,9 @@ canvas{display:block}
 .ig-card.item-enemy .ig-card-title{color:#FF5050}
 #ig-close-btn{display:block;margin:16px auto 0;background:rgba(255,255,255,0.2);border:2px solid rgba(255,255,255,0.35);color:#fff;padding:12px 48px;border-radius:20px;font-size:16px;cursor:pointer}
 #ig-close-btn:active{background:rgba(255,255,255,0.35)}
+#countdown{position:fixed;inset:0;z-index:18;display:none;align-items:center;justify-content:center;pointer-events:none}
+#countdown span{font-size:120px;font-weight:900;color:#fff;text-shadow:0 4px 20px rgba(0,0,0,0.5),0 0 60px rgba(255,215,0,0.4);animation:countPop 0.8s ease-out}
+@keyframes countPop{0%{transform:scale(2);opacity:0}20%{transform:scale(1);opacity:1}80%{opacity:1}100%{opacity:0;transform:scale(0.8)}}
 #overlay{position:fixed;inset:0;z-index:15;display:none;flex-direction:column;align-items:center;justify-content:center;background:rgba(0,0,0,0.6);cursor:pointer}
 #overlay h2{color:#FFD700;font-size:40px;text-shadow:2px 2px 0 rgba(0,0,0,0.5);margin-bottom:14px}
 #overlay p{color:#fff;font-size:18px;text-align:center;line-height:1.6}
@@ -191,16 +194,17 @@ canvas{display:block}
 
     <div class="ig-card item-slow">
       <div class="ig-card-head">
-        <span class="ig-card-icon">⏱️</span>
-        <span class="ig-card-title">スロー</span>
+        <span class="ig-card-icon">☁️</span>
+        <span class="ig-card-title">ふわふわタイム</span>
       </div>
       <div class="ig-card-desc">
         出現率: <b>約1/5</b>（ステージ序盤〜中盤）<br>
         効果時間: <b>8秒</b><br>
-        ・ゲーム速度が <b>半分</b> になる！<br>
-        ・操作が楽になり、判断する時間が増える<br>
-        ・難所の手前で取れると超ラッキー<br>
-        難しいステージほど活躍するアイテム。
+        ・空中を <b>自由に飛べる</b> ようになる！<br>
+        ・ジャンプ回数が <b>無制限</b> に<br>
+        ・落下速度が大幅に低下してふわふわ浮ける<br>
+        ・効果が切れたら <b>ジャンプ回数が回復</b><br>
+        難しいステージで取れたら超ラッキー！
       </div>
     </div>
 
@@ -229,6 +233,7 @@ canvas{display:block}
     <div id="score-display">Score: 0</div>
   </div>
 </div>
+<div id="countdown"><span id="cd-text"></span></div>
 <div id="overlay"><h2 id="ot"></h2><p id="os"></p></div>
 <div id="touch-controls">
   <button class="tc-btn" id="tc-left">◀</button>
@@ -299,10 +304,14 @@ let hasWings=false, wingTimer=0;
 let hasBarrier=false;
 // Star Fever: 3x score for 8s
 let starFeverTimer=0;
-// Slow: half speed for 8s
+// Float: fly freely for 8s (was "slow")
 let slowTimer=0, baseSpeed=SPD;
 let enemies=[], wings=[];  // enemy meshes, wing item meshes
 let items=[];  // barrier, starFever, slow items
+
+// Goal dance: 3 giraffes dancing
+let danceGiraffes=[];
+let danceTimer=0;
 
 const K={};
 document.addEventListener('keydown',e=>{K[e.code]=true;['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)&&e.preventDefault()});
@@ -1285,7 +1294,7 @@ function updHUD(){
   if(hasWings) scoreText+='  🪽'+Math.ceil(wingTimer)+'s';
   if(hasBarrier) scoreText+='  🛡️';
   if(starFeverTimer>0) scoreText+='  ⭐x3 '+Math.ceil(starFeverTimer)+'s';
-  if(slowTimer>0) scoreText+='  🕐'+Math.ceil(slowTimer)+'s';
+  if(slowTimer>0) scoreText+='  ☁️'+Math.ceil(slowTimer)+'s';
   document.getElementById('score-display').textContent=scoreText;
   document.getElementById('stage-info').textContent=sg.icon+' '+sg.name+'　Lv.'+lv+'　'+tm.name;
 }
@@ -1300,14 +1309,75 @@ function burst(pos,col,n){
 }
 
 /* ===== Game Loop ===== */
+function startGoalDance(){
+  // Spawn 2 extra giraffes beside the player
+  danceGiraffes.forEach(d=>S.remove(d));
+  danceGiraffes=[];
+  const baseY=holder.position.y;
+  [-1,1].forEach(s=>{
+    const dg=mkGiraffe();
+    dg.position.set(holder.position.x+s*LW,baseY,holder.position.z);
+    S.add(dg);danceGiraffes.push(dg);
+  });
+}
+
+function updateDance(){
+  danceTimer+=0.05;
+  const t=danceTimer;
+  // Main giraffe dance
+  if(gir){
+    const body=gir.children[0];
+    body.position.y=0.9+Math.abs(Math.sin(t*3))*0.4; // bounce
+    gir.rotation.y=Math.sin(t*2)*0.5; // sway
+    gir.rotation.z=Math.sin(t*2.5)*0.15; // tilt
+  }
+  // Side giraffes dance (offset phase)
+  danceGiraffes.forEach((dg,i)=>{
+    const phase=i===0?0.7:1.4;
+    const body=dg.children[0];
+    if(body) body.position.y=0.9+Math.abs(Math.sin(t*3+phase))*0.4;
+    dg.rotation.y=Math.sin(t*2+phase)*0.5;
+    dg.rotation.z=Math.sin(t*2.5+phase)*0.15;
+  });
+  // Periodically burst confetti
+  if(Math.floor(t*2)!==Math.floor((t-0.05)*2)){
+    const gc=STAGES[selStage].tc;
+    const colors=[gc,0xFFD700,0xFF69B4,0x5CB85C,0x5eaaff];
+    const c=colors[Math.floor(Math.random()*colors.length)];
+    const pos=holder.position.clone().add(new THREE.Vector3((Math.random()-0.5)*4,1+Math.random()*2,(Math.random()-0.5)*2));
+    burst(pos,c,5);
+  }
+  // After ~3 seconds, show result overlay
+  if(danceTimer>3*3){  // ~3s (danceTimer increments 0.05/frame * 60fps ≈ 3/s)
+    danceGiraffes.forEach(d=>S.remove(d));danceGiraffes=[];
+    if(curLevel>=5){
+      showO('🎉 ステージクリア！','スコア: '+score+'\nクリックでステージ選択へ');
+      st='stageClear';
+    }else{
+      const nextTm=TIMES[curLevel];
+      const nextLv=STAGES[selStage].startLv+curLevel;
+      showO('Lv.'+nextLv+' '+nextTm.name+' へ！','');
+      st='levelClear';
+      setTimeout(()=>{genLevel();updHUD();st='playing';hideO();playBGM(selStage)},1800);
+    }
+  }
+}
+
 function update(){
-  if(st!=='playing')return;
+  if(st==='dancing'){updateDance();return;}
+  if(st!=='playing'&&st!=='countdown')return;
+  if(st==='countdown'){
+    // During countdown: render scene but don't move player
+    rt+=0.12;
+    if(gir)gir.children[0].position.y=0.9+Math.sin(rt*2)*0.03; // gentle idle bob
+    return;
+  }
   rt+=0.12;
   if(lnCD>0)lnCD--;
   if((K.ArrowLeft||K.KeyA||T.left)&&lnCD<=0&&lane>0){lane--;lnCD=10;T.left=false}
   if((K.ArrowRight||K.KeyD||T.right)&&lnCD<=0&&lane<2){lane++;lnCD=10;T.right=false}
-  // Jump: double jump (or triple with wings) — requires key release between jumps
-  const curMaxJumps=hasWings?3:2;
+  // Jump: double jump (or triple with wings, unlimited with float) — requires key release between jumps
+  const curMaxJumps=slowTimer>0?999:hasWings?3:2;
   const jumpPressed=(K.Space||K.ArrowUp||K.KeyW||T.jump);
   if(jumpPressed&&jumpKeyReleased&&jumpCount<curMaxJumps){
     vy=JMPV*(jumpCount===0?1:0.85)*(hasWings?1.1:1); // wings boost jumps
@@ -1319,8 +1389,8 @@ function update(){
 
   // --- Power-up timers ---
   const dt=1/60;
-  // Current speed (slow effect)
-  const curSPD=slowTimer>0?SPD*0.5:SPD;
+  // Current speed (normal — float doesn't slow down)
+  const curSPD=SPD;
   // Wing timer
   if(hasWings){
     wingTimer-=dt;
@@ -1338,11 +1408,11 @@ function update(){
     if(Math.floor(starFeverTimer*2)!==Math.floor((starFeverTimer+dt)*2)) updHUD();
     if(starFeverTimer<=0){starFeverTimer=0;updHUD();}
   }
-  // Slow timer
+  // Float timer (ふわふわタイム)
   if(slowTimer>0){
     slowTimer-=dt;
     if(Math.floor(slowTimer*2)!==Math.floor((slowTimer+dt)*2)) updHUD();
-    if(slowTimer<=0){slowTimer=0;updHUD();}
+    if(slowTimer<=0){slowTimer=0;jumpCount=0;updHUD();} // recover jumps on expire
   }
   // Barrier pulse animation
   if(girBarrierMesh){
@@ -1351,7 +1421,7 @@ function update(){
   }
 
   holder.position.x+=((lane-1)*LW-holder.position.x)*0.35;
-  if(!og)vy+=(hasWings?GRAV*0.5:GRAV); // Wings = floaty fall
+  if(!og)vy+=(slowTimer>0?GRAV*0.25:hasWings?GRAV*0.5:GRAV); // Float=super floaty, Wings=floaty
   holder.position.y+=vy;
 
   og=false;
@@ -1478,7 +1548,7 @@ function update(){
       }
     }
   }
-  enemies=enemies.filter(e=>{if(e.position.z>8){S.remove(e);return false}return!e.userData.hit});
+  enemies=enemies.filter(e=>{if(e.position.z>8||e.userData.hit){S.remove(e);return false}return true});
 
   // Projectile update + collision
   for(let i=projectiles.length-1;i>=0;i--){
@@ -1541,8 +1611,8 @@ function update(){
         starFeverTimer=8;
         burst(it.position.clone(),0xFFDD00,15);
       }else if(type==='slow'){
-        slowTimer=8;
-        burst(it.position.clone(),0x88EEBB,12);
+        slowTimer=8;jumpCount=0; // reset jumps on pickup
+        burst(it.position.clone(),0xAADDFF,15);
       }
       S.remove(it);updHUD();
     }
@@ -1572,7 +1642,7 @@ function update(){
   });
   strs=strs.filter(s=>{if(s.position.z>8){S.remove(s);return false}return!s.userData.collected});
 
-  // Goal reached
+  // Goal reached — start dance celebration!
   if(goal&&Math.abs(goal.position.z)<3){
     const gc=STAGES[selStage].tc;
     burst(goal.position.clone(),gc,15);
@@ -1580,17 +1650,9 @@ function update(){
     burst(goal.position.clone().add(new THREE.Vector3(-1,1,0)),gc,8);
     burst(goal.position.clone().add(new THREE.Vector3(1,1,0)),gc,8);
     curLevel++;
-    if(curLevel>=5){
-      // Stage complete!
-      showO('🎉 ステージクリア！','スコア: '+score+'\nクリックでステージ選択へ');
-      st='stageClear';
-    }else{
-      const nextTm=TIMES[curLevel];
-      const nextLv=STAGES[selStage].startLv+curLevel;
-      showO('Lv.'+nextLv+' '+nextTm.name+' へ！','');
-      st='levelClear';
-      setTimeout(()=>{genLevel();updHUD();st='playing';hideO();playBGM(selStage)},1800);
-    }
+    st='dancing';
+    danceTimer=0;
+    startGoalDance();
     return;
   }
 
@@ -1643,6 +1705,7 @@ function cleanupGame(){
   hasWings=false;wingTimer=0;removeWingsFromGiraffe();
   hasBarrier=false;removeBarrierFromGiraffe();
   starFeverTimer=0;slowTimer=0;
+  danceGiraffes.forEach(d=>S.remove(d));danceGiraffes=[];danceTimer=0;
 }
 
 /* ===== Stage Select Screen ===== */
@@ -1728,8 +1791,31 @@ function startStage(idx){
   showScreen('hud');hideO();
   if(gir)holder.remove(gir);
   gir=mkGiraffe();holder.add(gir);
-  genLevel();updHUD();st='playing';showTouchUI(true);
+  genLevel();updHUD();st='countdown';showTouchUI(true);
   playBGM(idx);
+  runCountdown();
+}
+
+function runCountdown(){
+  const cdEl=document.getElementById('countdown');
+  const cdTxt=document.getElementById('cd-text');
+  const steps=['3','2','1','GO!'];
+  let i=0;
+  cdEl.style.display='flex';
+  function tick(){
+    cdTxt.textContent=steps[i];
+    // Re-trigger animation
+    cdTxt.style.animation='none';
+    cdTxt.offsetHeight; // force reflow
+    cdTxt.style.animation='countPop 0.8s ease-out';
+    i++;
+    if(i<steps.length){
+      setTimeout(tick,800);
+    }else{
+      setTimeout(()=>{cdEl.style.display='none';st='playing';},500);
+    }
+  }
+  tick();
 }
 
 document.getElementById('overlay').addEventListener('click',()=>{
