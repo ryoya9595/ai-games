@@ -93,6 +93,28 @@ canvas{display:block}
 #countdown{position:fixed;inset:0;z-index:18;display:none;align-items:center;justify-content:center;pointer-events:none}
 #countdown span{font-size:120px;font-weight:900;color:#fff;text-shadow:0 4px 20px rgba(0,0,0,0.5),0 0 60px rgba(255,215,0,0.4);animation:countPop 0.8s ease-out}
 @keyframes countPop{0%{transform:scale(2);opacity:0}20%{transform:scale(1);opacity:1}80%{opacity:1}100%{opacity:0;transform:scale(0.8)}}
+#goal-text{position:fixed;inset:0;z-index:18;display:none;align-items:center;justify-content:center;pointer-events:none}
+#goal-text span{font-size:90px;font-weight:900;
+  background:linear-gradient(180deg,#FFD700 0%,#FF6B35 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  filter:drop-shadow(3px 4px 0 rgba(0,0,0,0.4)) drop-shadow(0 0 30px rgba(255,200,0,0.6));
+  animation:goalPop 1.5s ease-out forwards}
+@keyframes goalPop{0%{transform:scale(3) rotate(-5deg);opacity:0}15%{transform:scale(1.1) rotate(2deg);opacity:1}30%{transform:scale(1) rotate(0deg)}85%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(0.6) translateY(-30px)}}
+#praise-text{position:fixed;top:15%;left:0;right:0;z-index:18;display:none;align-items:center;justify-content:center;pointer-events:none}
+#praise-text span{font-size:52px;font-weight:900;color:#fff;
+  text-shadow:0 3px 15px rgba(0,0,0,0.5),0 0 40px rgba(255,100,200,0.4);
+  animation:praisePop 1.2s ease-out forwards}
+@keyframes praisePop{0%{transform:scale(0) rotate(-10deg);opacity:0}20%{transform:scale(1.2) rotate(3deg);opacity:1}40%{transform:scale(1) rotate(0deg)}75%{opacity:1}100%{opacity:0;transform:translateY(-20px) scale(0.8)}}
+#float-overlay{position:fixed;inset:0;z-index:9;pointer-events:none;display:none;
+  background:radial-gradient(ellipse at center,rgba(100,200,255,0) 30%,rgba(100,200,255,0.25) 100%);
+  border:4px solid rgba(100,200,255,0.4);box-sizing:border-box;
+  box-shadow:inset 0 0 60px rgba(100,200,255,0.2);
+  animation:floatPulse 1.5s ease-in-out infinite}
+@keyframes floatPulse{0%,100%{border-color:rgba(100,200,255,0.3);box-shadow:inset 0 0 60px rgba(100,200,255,0.15)}50%{border-color:rgba(100,200,255,0.6);box-shadow:inset 0 0 80px rgba(100,200,255,0.3)}}
+#controls-hint{position:fixed;bottom:20px;left:0;right:0;z-index:11;text-align:center;pointer-events:none;
+  font-size:22px;font-weight:bold;color:rgba(255,255,255,0.9);
+  text-shadow:2px 2px 4px rgba(0,0,0,0.7),0 0 10px rgba(0,0,0,0.3);
+  transition:opacity 0.8s;display:none}
+@media (max-width:768px),(pointer:coarse){#controls-hint{display:none!important}}
 #overlay{position:fixed;inset:0;z-index:15;display:none;flex-direction:column;align-items:center;justify-content:center;background:rgba(0,0,0,0.6);cursor:pointer}
 #overlay h2{color:#FFD700;font-size:40px;text-shadow:2px 2px 0 rgba(0,0,0,0.5);margin-bottom:14px}
 #overlay p{color:#fff;font-size:18px;text-align:center;line-height:1.6}
@@ -234,6 +256,10 @@ canvas{display:block}
   </div>
 </div>
 <div id="countdown"><span id="cd-text"></span></div>
+<div id="goal-text"><span id="goal-txt"></span></div>
+<div id="praise-text"><span id="praise-txt"></span></div>
+<div id="float-overlay"></div>
+<div id="controls-hint">← → : レーン移動　｜　スペース : ジャンプ（2段OK！）</div>
 <div id="overlay"><h2 id="ot"></h2><p id="os"></p></div>
 <div id="touch-controls">
   <button class="tc-btn" id="tc-left">◀</button>
@@ -244,10 +270,12 @@ canvas{display:block}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
 /* ===== Constants ===== */
-const LW=2.4, SPD=0.12, GRAV=-0.02, JMPV=0.32, GY=0.8, RS=2.8;
+const LW=2.4, BASE_SPD=0.12, GRAV=-0.02, JMPV=0.32, GY=0.8, RS=2.8;
+let SPD=BASE_SPD; // overridden per-stage
 
 /* ===== External BGM (Audio File Loader) ===== */
 let bgmAudio=null, bgmPlaying=false;
+let audioUnlocked=false;
 
 // Stage BGM file paths (CC0 licensed, no attribution required)
 const BGM_FILES=[
@@ -273,6 +301,51 @@ function preloadBGM(){
 }
 preloadBGM();
 
+// Title BGM: MP3 file (HTML5 Audio)
+const titleBGMAudio=new Audio('bgm/title_bgm.mp3');
+titleBGMAudio.loop=true;
+titleBGMAudio.volume=0.35;
+titleBGMAudio.preload='auto';
+function playTitleBGM(){
+  stopBGM();
+  try{
+    if(titleBGMAudio.readyState<2){
+      titleBGMAudio.load();
+      titleBGMAudio.addEventListener('canplay',function h(){
+        titleBGMAudio.removeEventListener('canplay',h);
+        titleBGMAudio.play().catch(()=>{});
+      });
+    }else{
+      titleBGMAudio.currentTime=0;
+      titleBGMAudio.play().catch(()=>{});
+    }
+  }catch(e){}
+}
+function stopTitleBGM(){
+  try{
+    titleBGMAudio.pause();
+    titleBGMAudio.currentTime=0;
+  }catch(e){}
+}
+
+// Unlock audio on first user interaction (mobile requirement)
+function unlockAudio(){
+  if(audioUnlocked)return;
+  audioUnlocked=true;
+  // Force-load all BGM files (Chrome may defer preload until interaction)
+  try{titleBGMAudio.load();}catch(e){}
+  bgmCache.forEach(a=>{try{a.load();}catch(e){}});
+  // Create and immediately destroy a silent audio to unlock HTML5 Audio
+  const silent=new Audio();
+  silent.src='data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAABhgC7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAAAAAAAAAAAAYYAAAAAAAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAABhgC7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAAAAAAAAAAAAYYAAAAAAAAAAAAAAAAAAAAA';
+  silent.play().then(()=>silent.pause()).catch(()=>{});
+  // Play title BGM if on title screen
+  if(st==='title'||st==='select') playTitleBGM();
+}
+['click','touchstart','keydown'].forEach(ev=>
+  document.addEventListener(ev,unlockAudio,{once:false,passive:true})
+);
+
 function stopBGM(){
   if(bgmAudio){
     bgmAudio.pause();
@@ -282,15 +355,22 @@ function stopBGM(){
 }
 
 function playBGM(stageIdx){
-  stopBGM();
+  stopBGM();stopTitleBGM();
   const a=bgmCache[stageIdx]||bgmCache[0];
-  a.currentTime=0;
   a.volume=BGM_VOLUME[stageIdx]||0.35;
   a.loop=true;
-  const playPromise=a.play();
-  if(playPromise) playPromise.catch(()=>{});
   bgmAudio=a;
   bgmPlaying=true;
+  if(a.readyState<2){
+    a.load();
+    a.addEventListener('canplay',function h(){
+      a.removeEventListener('canplay',h);
+      a.play().catch(()=>{});
+    });
+  }else{
+    a.currentTime=0;
+    a.play().catch(()=>{});
+  }
 }
 
 /* ===== State ===== */
@@ -309,9 +389,16 @@ let slowTimer=0, baseSpeed=SPD;
 let enemies=[], wings=[];  // enemy meshes, wing item meshes
 let items=[];  // barrier, starFever, slow items
 
-// Goal dance: 3 giraffes dancing
-let danceGiraffes=[];
-let danceTimer=0;
+// Goal dance
+let danceTimer=0, goalShowTimer=0;
+const PRAISE_WORDS=[
+  'やったね！','パーフェクト！','素晴らしい！','すごい！','最高！',
+  'グレート！','ナイス！','かっこいい！','天才！','さすが！',
+  'ブラボー！','お見事！','カンペキ！','スーパー！','ワンダフル！',
+  'やるじゃん！','神プレイ！','上手すぎ！','すごすぎる！','すんばらしい！',
+  'マーベラス！','エクセレント！','ファンタスティック！','MVP！','金メダル🥇',
+  'キリンも喜んでる！','最強！','圧巻！','イケてる！','100点満点！！',
+];
 
 const K={};
 document.addEventListener('keydown',e=>{K[e.code]=true;['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)&&e.preventDefault()});
@@ -321,27 +408,27 @@ document.addEventListener('keyup',e=>K[e.code]=false);
 const STAGES=[
   {name:'はらっぱ（初級）',icon:'🌿',tc:0x5CB85C,sc:0x8B6914,btn:'#4CAF50',
    dists:[60,70,80,90,100], diff:[0.10,0.18,0.28,0.38,0.48], startLv:1,
-   enemyRate:0.08, enemyType:'caterpillar'},
+   enemyRate:0.08, enemyType:'caterpillar', speed:0.65},
   {name:'おそら（初中級）',icon:'☁️',tc:0xE8A035,sc:0x795548,btn:'#2196F3',
    dists:[65,80,95,110,125], diff:[0.18,0.30,0.45,0.58,0.70], startLv:1,
-   enemyRate:0.12, enemyType:'bird'},
+   enemyRate:0.12, enemyType:'bird', speed:0.80},
   {name:'ほしぞら（中級）',icon:'⭐',tc:0x7B5EA7,sc:0x37474F,btn:'#7B5EA7',
    dists:[70,85,100,120,140], diff:[0.28,0.45,0.60,0.75,0.88], startLv:1,
-   enemyRate:0.16, enemyType:'ghost'},
+   enemyRate:0.16, enemyType:'ghost', speed:1.0},
   {name:'マウンテン（上級）',icon:'⛰️',tc:0x8B7355,sc:0x5D4E37,btn:'#6D5B3B',
    dists:[75,95,115,135,155], diff:[0.38,0.55,0.70,0.85,0.95], startLv:1,
-   enemyRate:0.20, enemyType:'golem'},
+   enemyRate:0.20, enemyType:'golem', speed:1.15},
   {name:'デス（地獄級）',icon:'💀',tc:0x8B0000,sc:0x2F2F2F,btn:'#6B0000',
-   dists:[100,125,150,175,200], diff:[0.60,0.72,0.82,0.92,1.0], startLv:6,
-   enemyRate:0.28, enemyType:'reaper'},
+   dists:[100,125,150,175,200], diff:[0.60,0.72,0.82,0.92,1.0], startLv:1,
+   enemyRate:0.28, enemyType:'reaper', speed:1.30},
 ];
 
 const TIMES=[
-  {name:'あさ',   sky:0xFFA57A,fog:0xFFC09F,ambI:0.65,dlI:0.7},
-  {name:'ひる',   sky:0x87CEEB,fog:0xA8D8EA,ambI:0.7,dlI:0.8},
-  {name:'ゆうがた',sky:0xE85530,fog:0xEE7755,ambI:0.5,dlI:0.6},
-  {name:'よる',   sky:0x0E0E30,fog:0x1A1A40,ambI:0.3,dlI:0.4},
-  {name:'よあけ', sky:0xC89FD0,fog:0xD5B0DD,ambI:0.55,dlI:0.65},
+  {name:'朝ステージ',  sky:0xFFA57A,fog:0xFFC09F,ambI:0.65,dlI:0.7},
+  {name:'昼ステージ',  sky:0x87CEEB,fog:0xA8D8EA,ambI:0.7,dlI:0.8},
+  {name:'夕方ステージ',sky:0xE85530,fog:0xEE7755,ambI:0.5,dlI:0.6},
+  {name:'夜ステージ',  sky:0x0E0E30,fog:0x1A1A40,ambI:0.3,dlI:0.4},
+  {name:'深夜ステージ',sky:0xC89FD0,fog:0xD5B0DD,ambI:0.55,dlI:0.65},
 ];
 
 /* ===== THREE.js Setup ===== */
@@ -1309,36 +1396,26 @@ function burst(pos,col,n){
 }
 
 /* ===== Game Loop ===== */
-function startGoalDance(){
-  // Spawn 2 extra giraffes beside the player
-  danceGiraffes.forEach(d=>S.remove(d));
-  danceGiraffes=[];
-  const baseY=holder.position.y;
-  [-1,1].forEach(s=>{
-    const dg=mkGiraffe();
-    dg.position.set(holder.position.x+s*LW,baseY,holder.position.z);
-    S.add(dg);danceGiraffes.push(dg);
-  });
-}
+let danceBaseY=GY, lastPraiseTime=0;
 
 function updateDance(){
   danceTimer+=0.05;
   const t=danceTimer;
-  // Main giraffe dance
+  // 1 giraffe bouncing dance (move whole holder so legs don't separate)
+  const bounce=Math.abs(Math.sin(t*3))*0.4;
+  holder.position.y=danceBaseY+bounce;
   if(gir){
-    const body=gir.children[0];
-    body.position.y=0.9+Math.abs(Math.sin(t*3))*0.4; // bounce
-    gir.rotation.y=Math.sin(t*2)*0.5; // sway
-    gir.rotation.z=Math.sin(t*2.5)*0.15; // tilt
+    gir.rotation.y=Math.sin(t*2)*0.6; // sway left/right
+    gir.rotation.z=Math.sin(t*2.5)*0.12; // tilt
   }
-  // Side giraffes dance (offset phase)
-  danceGiraffes.forEach((dg,i)=>{
-    const phase=i===0?0.7:1.4;
-    const body=dg.children[0];
-    if(body) body.position.y=0.9+Math.abs(Math.sin(t*3+phase))*0.4;
-    dg.rotation.y=Math.sin(t*2+phase)*0.5;
-    dg.rotation.z=Math.sin(t*2.5+phase)*0.15;
-  });
+  // Smoothly move camera to follow the giraffe past the goal
+  cam.position.z+=(holder.position.z+8-cam.position.z)*0.05;
+  cam.lookAt(holder.position.x,holder.position.y+1,holder.position.z);
+  // Show rotating praise words every ~1.5s
+  if(t-lastPraiseTime>1.5){
+    lastPraiseTime=t;
+    showPraise();
+  }
   // Periodically burst confetti
   if(Math.floor(t*2)!==Math.floor((t-0.05)*2)){
     const gc=STAGES[selStage].tc;
@@ -1347,9 +1424,14 @@ function updateDance(){
     const pos=holder.position.clone().add(new THREE.Vector3((Math.random()-0.5)*4,1+Math.random()*2,(Math.random()-0.5)*2));
     burst(pos,c,5);
   }
-  // After ~3 seconds, show result overlay
-  if(danceTimer>3*3){  // ~3s (danceTimer increments 0.05/frame * 60fps ≈ 3/s)
-    danceGiraffes.forEach(d=>S.remove(d));danceGiraffes=[];
+  // After ~4 seconds of dance, show result overlay
+  if(danceTimer>4*3){
+    hidePraise();
+    holder.position.y=danceBaseY;
+    holder.position.z=0; // reset position
+    cam.position.set(0,5,6.5); // reset camera to original
+    cam.lookAt(0,0,-4);
+    if(gir){gir.rotation.y=0;gir.rotation.z=0;}
     if(curLevel>=5){
       showO('🎉 ステージクリア！','スコア: '+score+'\nクリックでステージ選択へ');
       st='stageClear';
@@ -1358,18 +1440,54 @@ function updateDance(){
       const nextLv=STAGES[selStage].startLv+curLevel;
       showO('Lv.'+nextLv+' '+nextTm.name+' へ！','');
       st='levelClear';
-      setTimeout(()=>{genLevel();updHUD();st='playing';hideO();playBGM(selStage)},1800);
+      setTimeout(()=>{genLevel();updHUD();st='countdown';hideO();playBGM(selStage);runCountdown()},1800);
     }
   }
 }
 
+function updateGoalShow(){
+  goalShowTimer+=0.05;
+  // Gradually move giraffe forward through the goal gate
+  const progress=Math.min(goalShowTimer/1.8, 1); // takes ~1.8s (36 frames) to pass through
+  holder.position.z=-4*progress;
+  holder.position.y=GY;
+  vy=0;og=true;
+  // Camera follows gently
+  cam.position.z+=(holder.position.z+8-cam.position.z)*0.04;
+  cam.lookAt(holder.position.x,holder.position.y+1,holder.position.z);
+  // Move goal with world scroll so it stays in place visually
+  if(goal) goal.position.z+=SPD;
+  // After ~2s, transition to dance
+  if(goalShowTimer>2.0){
+    document.getElementById('goal-text').style.display='none';
+    if(goal){S.remove(goal);goal=null;} // Hide goal gate so giraffe face is visible during dance
+    st='dancing';
+    danceTimer=0;
+    lastPraiseTime=0;
+    danceBaseY=GY;
+    // Show first praise word
+    showPraise();
+  }
+}
+
+function showPraise(){
+  const el=document.getElementById('praise-text');
+  const txt=document.getElementById('praise-txt');
+  txt.textContent=PRAISE_WORDS[Math.floor(Math.random()*PRAISE_WORDS.length)];
+  txt.style.animation='none';txt.offsetHeight;
+  txt.style.animation='praisePop 1.2s ease-out forwards';
+  el.style.display='flex';
+}
+function hidePraise(){document.getElementById('praise-text').style.display='none';}
+
 function update(){
+  if(st==='goalShow'){updateGoalShow();return;}
   if(st==='dancing'){updateDance();return;}
   if(st!=='playing'&&st!=='countdown')return;
   if(st==='countdown'){
     // During countdown: render scene but don't move player
     rt+=0.12;
-    if(gir)gir.children[0].position.y=0.9+Math.sin(rt*2)*0.03; // gentle idle bob
+    holder.position.y=GY+Math.sin(rt*2)*0.03; // gentle idle bob (whole giraffe)
     return;
   }
   rt+=0.12;
@@ -1389,8 +1507,8 @@ function update(){
 
   // --- Power-up timers ---
   const dt=1/60;
-  // Current speed (normal — float doesn't slow down)
-  const curSPD=SPD;
+  // Current speed (slow during float)
+  const curSPD=slowTimer>0?SPD*0.5:SPD;
   // Wing timer
   if(hasWings){
     wingTimer-=dt;
@@ -1412,7 +1530,7 @@ function update(){
   if(slowTimer>0){
     slowTimer-=dt;
     if(Math.floor(slowTimer*2)!==Math.floor((slowTimer+dt)*2)) updHUD();
-    if(slowTimer<=0){slowTimer=0;jumpCount=0;updHUD();} // recover jumps on expire
+    if(slowTimer<=0){slowTimer=0;jumpCount=0;updHUD();document.getElementById('float-overlay').style.display='none';} // recover jumps on expire
   }
   // Barrier pulse animation
   if(girBarrierMesh){
@@ -1611,8 +1729,9 @@ function update(){
         starFeverTimer=8;
         burst(it.position.clone(),0xFFDD00,15);
       }else if(type==='slow'){
-        slowTimer=8;jumpCount=0; // reset jumps on pickup
+        slowTimer=15;jumpCount=0; // reset jumps on pickup
         burst(it.position.clone(),0xAADDFF,15);
+        document.getElementById('float-overlay').style.display='block';
       }
       S.remove(it);updHUD();
     }
@@ -1642,7 +1761,7 @@ function update(){
   });
   strs=strs.filter(s=>{if(s.position.z>8){S.remove(s);return false}return!s.userData.collected});
 
-  // Goal reached — start dance celebration!
+  // Goal reached — show goal celebration, then dance!
   if(goal&&Math.abs(goal.position.z)<3){
     const gc=STAGES[selStage].tc;
     burst(goal.position.clone(),gc,15);
@@ -1650,9 +1769,17 @@ function update(){
     burst(goal.position.clone().add(new THREE.Vector3(-1,1,0)),gc,8);
     burst(goal.position.clone().add(new THREE.Vector3(1,1,0)),gc,8);
     curLevel++;
-    st='dancing';
-    danceTimer=0;
-    startGoalDance();
+    st='goalShow';
+    goalShowTimer=0;
+    document.getElementById('float-overlay').style.display='none';
+    document.getElementById('controls-hint').style.display='none';
+    // Show "ゴール！！！" text
+    const gtEl=document.getElementById('goal-text');
+    const gtTxt=document.getElementById('goal-txt');
+    gtTxt.textContent='ゴール！！！';
+    gtTxt.style.animation='none';gtTxt.offsetHeight;
+    gtTxt.style.animation='goalPop 1.5s ease-out forwards';
+    gtEl.style.display='flex';
     return;
   }
 
@@ -1705,7 +1832,13 @@ function cleanupGame(){
   hasWings=false;wingTimer=0;removeWingsFromGiraffe();
   hasBarrier=false;removeBarrierFromGiraffe();
   starFeverTimer=0;slowTimer=0;
-  danceGiraffes.forEach(d=>S.remove(d));danceGiraffes=[];danceTimer=0;
+  holder.position.set(0,GY,0);
+  cam.position.set(0,5,6.5);cam.lookAt(0,0,-4);
+  danceTimer=0;goalShowTimer=0;lastPraiseTime=0;
+  document.getElementById('goal-text').style.display='none';
+  document.getElementById('float-overlay').style.display='none';
+  document.getElementById('controls-hint').style.display='none';
+  hidePraise();
 }
 
 /* ===== Stage Select Screen ===== */
@@ -1773,10 +1906,12 @@ function cleanupGame(){
 /* ===== Game Flow ===== */
 document.getElementById('start-btn').addEventListener('click',()=>{
   showScreen('stage-select');st='select';
+  playTitleBGM();
 });
 
 document.getElementById('back-btn').addEventListener('click',()=>{
   showScreen('title-screen');st='title';
+  playTitleBGM();
 });
 
 document.getElementById('item-help-btn').addEventListener('click',()=>{
@@ -1786,14 +1921,27 @@ document.getElementById('ig-close-btn').addEventListener('click',()=>{
   document.getElementById('item-guide').style.display='none';
 });
 
+let controlsHintTimeout=null;
+function showControlsHint(){
+  const el=document.getElementById('controls-hint');
+  if(!el)return;
+  // Only show on PC (media query hides on touch devices via CSS)
+  el.style.display='block';el.style.opacity='1';
+  if(controlsHintTimeout) clearTimeout(controlsHintTimeout);
+  controlsHintTimeout=setTimeout(()=>{el.style.opacity='0';
+    setTimeout(()=>{el.style.display='none';},600);
+  },5000); // Show for 5 seconds then fade out
+}
 function startStage(idx){
   selStage=idx;curLevel=0;score=0;
+  SPD=BASE_SPD*(STAGES[idx].speed||1.0);
   showScreen('hud');hideO();
   if(gir)holder.remove(gir);
   gir=mkGiraffe();holder.add(gir);
   genLevel();updHUD();st='countdown';showTouchUI(true);
   playBGM(idx);
   runCountdown();
+  showControlsHint();
 }
 
 function runCountdown(){
@@ -1822,6 +1970,7 @@ document.getElementById('overlay').addEventListener('click',()=>{
   if(st==='gameOver'||st==='stageClear'){
     hideO();cleanupGame();showTouchUI(false);stopBGM();
     showScreen('stage-select');st='select';
+    playTitleBGM();
   }
 });
 
@@ -1856,7 +2005,7 @@ setupTouchBtn(tcBtns.jump,'jump');
 // Canvas touch fallback (for tapping game area on non-button zones, and for menu screens)
 cv.addEventListener('touchstart',e=>{
   e.preventDefault();
-  if(st==='title'){showScreen('stage-select');st='select';return}
+  if(st==='title'){showScreen('stage-select');st='select';playTitleBGM();return}
   if(st==='gameOver'||st==='stageClear'){document.getElementById('overlay').click();return}
 },{passive:false});
 
@@ -1864,6 +2013,8 @@ window.addEventListener('resize',()=>{cam.aspect=innerWidth/innerHeight;cam.upda
 
 function animate(){requestAnimationFrame(animate);update();R.render(S,cam)}
 animate();
+// Try to play title BGM on load (will only work if autoplay is allowed; otherwise unlockAudio handles it)
+try{playTitleBGM();}catch(e){}
 </script>
 </body>
 </html>
