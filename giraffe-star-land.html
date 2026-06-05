@@ -1313,6 +1313,71 @@ function removeBarrierFromGiraffe(){
   gir.remove(girBarrierMesh);girBarrierMesh=null;
 }
 
+/* ===== 時計（スロー）：頭上のカウントダウン時計 ===== */
+let slowClockSprite=null, slowClockLastSec=-1;
+function makeClockTexture(sec){
+  const c=document.createElement('canvas');c.width=256;c.height=300;
+  const x=c.getContext('2d');
+  const cx=128, cy=100, r=88;
+  x.clearRect(0,0,256,300);
+  // 文字盤
+  x.beginPath();x.arc(cx,cy,r,0,Math.PI*2);
+  x.fillStyle='rgba(238,248,255,0.96)';x.fill();
+  x.lineWidth=12;x.strokeStyle='#2E9BE6';x.stroke();
+  // 目盛り
+  for(let i=0;i<12;i++){const a=i/12*Math.PI*2;
+    x.beginPath();
+    x.moveTo(cx+Math.cos(a)*(r-14),cy+Math.sin(a)*(r-14));
+    x.lineTo(cx+Math.cos(a)*(r-26),cy+Math.sin(a)*(r-26));
+    x.lineWidth=6;x.strokeStyle='#9CC7E6';x.stroke();}
+  // 針（分針は秒ごとに回って“時を刻む”感じ）
+  const ma=-Math.PI/2 + (sec%60)/60*Math.PI*2;
+  x.lineCap='round';
+  x.beginPath();x.moveTo(cx,cy);x.lineTo(cx+Math.cos(ma)*(r-30),cy+Math.sin(ma)*(r-30));x.lineWidth=8;x.strokeStyle='#1A6FB0';x.stroke();
+  const ha=-Math.PI/2-0.6;
+  x.beginPath();x.moveTo(cx,cy);x.lineTo(cx+Math.cos(ha)*(r-52),cy+Math.sin(ha)*(r-52));x.lineWidth=11;x.strokeStyle='#1A6FB0';x.stroke();
+  x.beginPath();x.arc(cx,cy,8,0,Math.PI*2);x.fillStyle='#1A6FB0';x.fill();
+  // 残り秒数の数字
+  x.font='bold 104px -apple-system,BlinkMacSystemFont,sans-serif';x.textAlign='center';x.textBaseline='middle';
+  x.lineWidth=12;x.strokeStyle='rgba(255,255,255,0.95)';x.strokeText(String(sec),cx,250);
+  x.fillStyle='#1466A8';x.fillText(String(sec),cx,250);
+  const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;return t;
+}
+function showSlowClock(sec){
+  if(!holder)return;
+  removeSlowClock();
+  const mat=new THREE.SpriteMaterial({map:makeClockTexture(sec),transparent:true,depthWrite:false,depthTest:false});
+  slowClockSprite=new THREE.Sprite(mat);
+  slowClockSprite.scale.set(1.25,1.46,1);
+  slowClockSprite.position.set(0,2.75,0);
+  slowClockSprite.renderOrder=999;
+  slowClockSprite.userData.pulse=1;
+  holder.add(slowClockSprite);
+  slowClockLastSec=sec;
+}
+function updateSlowClock(sec){
+  if(!slowClockSprite)return;
+  if(sec!==slowClockLastSec){
+    if(slowClockSprite.material.map)slowClockSprite.material.map.dispose();
+    slowClockSprite.material.map=makeClockTexture(sec);
+    slowClockSprite.material.needsUpdate=true;
+    slowClockLastSec=sec;
+    slowClockSprite.userData.pulse=1; // 数字が変わった瞬間ポップ
+  }
+  const p=slowClockSprite.userData.pulse||0;
+  const s=1+p*0.22;
+  slowClockSprite.scale.set(1.25*s,1.46*s,1);
+  if(p>0)slowClockSprite.userData.pulse=Math.max(0,p-0.08);
+  slowClockSprite.position.y=2.75+Math.sin(performance.now()*0.004)*0.06;
+}
+function removeSlowClock(){
+  if(slowClockSprite){
+    if(slowClockSprite.parent)slowClockSprite.parent.remove(slowClockSprite);
+    if(slowClockSprite.material){if(slowClockSprite.material.map)slowClockSprite.material.map.dispose();slowClockSprite.material.dispose();}
+  }
+  slowClockSprite=null;slowClockLastSec=-1;
+}
+
 /* ===== Wing visual on giraffe ===== */
 let girWingMeshes=null;
 function addWingsToGiraffe(){
@@ -1552,7 +1617,7 @@ function genLevel(){
   jumpCount=0;jumpKeyReleased=true;
   hasWings=false;wingTimer=0;removeWingsFromGiraffe();
   hasBarrier=false;removeBarrierFromGiraffe();
-  starFeverTimer=0;slowTimer=0;
+  starFeverTimer=0;slowTimer=0;removeSlowClock();
 }
 
 function updHUD(){
@@ -1712,7 +1777,8 @@ function update(){
   if(slowTimer>0){
     slowTimer-=dt;
     if(Math.floor(slowTimer*2)!==Math.floor((slowTimer+dt)*2)) updHUD();
-    if(slowTimer<=0){slowTimer=0;jumpCount=0;updHUD();document.getElementById('float-overlay').style.display='none';} // recover jumps on expire
+    updateSlowClock(Math.max(0,Math.ceil(slowTimer)));
+    if(slowTimer<=0){slowTimer=0;jumpCount=0;updHUD();document.getElementById('float-overlay').style.display='none';removeSlowClock();} // recover jumps on expire
   }
   // Barrier pulse animation
   if(girBarrierMesh){
@@ -1914,6 +1980,7 @@ function update(){
         slowTimer=15;jumpCount=0; // reset jumps on pickup
         burst(it.position.clone(),0xAADDFF,15);
         document.getElementById('float-overlay').style.display='block';
+        showSlowClock(Math.ceil(slowTimer));
       }
       S.remove(it);updHUD();
     }
@@ -2019,7 +2086,7 @@ function cleanupGame(){
   clouds.forEach(c=>S.remove(c));clouds=[];
   hasWings=false;wingTimer=0;removeWingsFromGiraffe();
   hasBarrier=false;removeBarrierFromGiraffe();
-  starFeverTimer=0;slowTimer=0;
+  starFeverTimer=0;slowTimer=0;removeSlowClock();
   holder.position.set(0,GY,0);
   cam.position.set(0,5,6.5);cam.lookAt(0,0,-4);
   danceTimer=0;goalShowTimer=0;lastPraiseTime=0;
