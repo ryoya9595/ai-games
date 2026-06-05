@@ -36,16 +36,16 @@ canvas{display:block}
 #title-logo{position:relative;z-index:2;text-align:center;margin-bottom:8px}
 #title-logo .stars{font-size:28px;animation:twinkle 2s ease-in-out infinite alternate}
 @keyframes twinkle{0%{opacity:0.5;transform:scale(0.9)}100%{opacity:1;transform:scale(1.1)}}
-#title-logo h1{font-size:38px;margin:0;
+#title-logo h1{font-size:clamp(26px,8vw,38px);margin:0;white-space:nowrap;
   background:linear-gradient(180deg,#FFE44D 0%,#FF8C00 100%);
   -webkit-background-clip:text;-webkit-text-fill-color:transparent;
   filter:drop-shadow(2px 3px 0 #CC6600) drop-shadow(0 0 12px rgba(255,200,0,0.4));
-  letter-spacing:4px}
-#title-logo h2{font-size:62px;margin:0 0 6px;
+  letter-spacing:clamp(2px,1vw,4px)}
+#title-logo h2{font-size:clamp(40px,12.5vw,62px);margin:0 0 6px;white-space:nowrap;
   background:linear-gradient(180deg,#FFD700 0%,#FF6B35 50%,#FF4080 100%);
   -webkit-background-clip:text;-webkit-text-fill-color:transparent;
   filter:drop-shadow(3px 4px 0 #993300) drop-shadow(-1px -1px 0 rgba(255,255,255,0.5)) drop-shadow(0 0 20px rgba(255,150,0,0.5));
-  letter-spacing:6px}
+  letter-spacing:clamp(2px,1.2vw,6px)}
 #title-giraffe{font-size:80px;margin-bottom:10px;position:relative;z-index:2;
   animation:girBounce 1.5s ease-in-out infinite;filter:drop-shadow(0 4px 8px rgba(0,0,0,0.2))}
 @keyframes girBounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-12px)}}
@@ -107,16 +107,16 @@ canvas{display:block}
 #ig-close-btn{display:block;margin:16px auto 0;background:rgba(255,255,255,0.2);border:2px solid rgba(255,255,255,0.35);color:#fff;padding:12px 48px;border-radius:20px;font-size:16px;cursor:pointer}
 #ig-close-btn:active{background:rgba(255,255,255,0.35)}
 #countdown{position:fixed;inset:0;z-index:18;display:none;align-items:center;justify-content:center;pointer-events:none}
-#countdown span{font-size:120px;font-weight:900;color:#fff;text-shadow:0 4px 20px rgba(0,0,0,0.5),0 0 60px rgba(255,215,0,0.4);animation:countPop 0.8s ease-out}
+#countdown span{font-size:clamp(80px,26vw,120px);font-weight:900;color:#fff;text-shadow:0 4px 20px rgba(0,0,0,0.5),0 0 60px rgba(255,215,0,0.4);animation:countPop 0.8s ease-out}
 @keyframes countPop{0%{transform:scale(2);opacity:0}20%{transform:scale(1);opacity:1}80%{opacity:1}100%{opacity:0;transform:scale(0.8)}}
 #goal-text{position:fixed;inset:0;z-index:18;display:none;align-items:center;justify-content:center;pointer-events:none}
-#goal-text span{font-size:90px;font-weight:900;
+#goal-text span{font-size:clamp(48px,15vw,90px);font-weight:900;white-space:nowrap;
   background:linear-gradient(180deg,#FFD700 0%,#FF6B35 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;
   filter:drop-shadow(3px 4px 0 rgba(0,0,0,0.4)) drop-shadow(0 0 30px rgba(255,200,0,0.6));
   animation:goalPop 1.5s ease-out forwards}
 @keyframes goalPop{0%{transform:scale(3) rotate(-5deg);opacity:0}15%{transform:scale(1.1) rotate(2deg);opacity:1}30%{transform:scale(1) rotate(0deg)}85%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(0.6) translateY(-30px)}}
 #praise-text{position:fixed;top:15%;left:0;right:0;z-index:18;display:none;align-items:center;justify-content:center;pointer-events:none}
-#praise-text span{font-size:52px;font-weight:900;color:#fff;
+#praise-text span{font-size:clamp(32px,9.5vw,52px);font-weight:900;color:#fff;padding:0 14px;text-align:center;line-height:1.2;
   text-shadow:0 3px 15px rgba(0,0,0,0.5),0 0 40px rgba(255,100,200,0.4);
   animation:praisePop 1.2s ease-out forwards}
 @keyframes praisePop{0%{transform:scale(0) rotate(-10deg);opacity:0}20%{transform:scale(1.2) rotate(3deg);opacity:1}40%{transform:scale(1) rotate(0deg)}75%{opacity:1}100%{opacity:0;transform:translateY(-20px) scale(0.8)}}
@@ -132,8 +132,8 @@ canvas{display:block}
   transition:opacity 0.8s;display:none}
 @media (max-width:768px),(pointer:coarse){#controls-hint{display:none!important}}
 #overlay{position:fixed;inset:0;z-index:15;display:none;flex-direction:column;align-items:center;justify-content:center;background:rgba(0,0,0,0.6);cursor:pointer}
-#overlay h2{color:#FFD700;font-size:40px;text-shadow:2px 2px 0 rgba(0,0,0,0.5);margin-bottom:14px}
-#overlay p{color:#fff;font-size:18px;text-align:center;line-height:1.6}
+#overlay h2{color:#FFD700;font-size:clamp(34px,9vw,52px);text-shadow:2px 2px 0 rgba(0,0,0,0.5);margin-bottom:14px;text-align:center;padding:0 18px;line-height:1.25}
+#overlay p{color:#fff;font-size:clamp(16px,4.6vw,21px);text-align:center;line-height:1.6;padding:0 18px;white-space:pre-line}
 /* ===== Touch Controls UI ===== */
 #touch-controls{position:fixed;bottom:0;left:0;right:0;z-index:12;display:none;justify-content:center;align-items:flex-end;padding:0 12px 20px;pointer-events:none;gap:10px}
 .tc-btn{pointer-events:auto;width:80px;height:80px;border:none;border-radius:50%;font-size:32px;font-weight:bold;color:#fff;background:rgba(255,255,255,0.25);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);border:2px solid rgba(255,255,255,0.35);cursor:pointer;display:flex;align-items:center;justify-content:center;user-select:none;-webkit-user-select:none;touch-action:manipulation;transition:background 0.08s}
@@ -1384,11 +1384,19 @@ function addWingsToGiraffe(){
   if(girWingMeshes||!gir)return;
   girWingMeshes=new THREE.Group();
   const wm=new THREE.MeshLambertMaterial({color:0x88EEFF,emissive:0x226688,transparent:true,opacity:0.7});
+  // 画像キャラ（ビルボード）は背が高く平面なので、羽を顔に被せず両肩の外側・少し後ろに配置
+  const isImg=!!(gir.userData&&gir.userData.bobSprite);
   [-1,1].forEach(s=>{
     const w=new THREE.Mesh(new THREE.SphereGeometry(0.4,8,6),wm);
-    w.scale.set(1.6,0.2,0.9);
-    w.position.set(s*0.7,1.0,0);
-    w.rotation.z=s*0.5;
+    if(isImg){
+      w.scale.set(1.7,0.22,1.0);
+      w.position.set(s*1.05,1.45,-0.35); // 体の外側＋肩あたり＋少し奥
+      w.rotation.z=s*0.55;
+    }else{
+      w.scale.set(1.6,0.2,0.9);
+      w.position.set(s*0.7,1.0,0);
+      w.rotation.z=s*0.5;
+    }
     girWingMeshes.add(w);
   });
   gir.add(girWingMeshes);
