@@ -65,6 +65,19 @@ canvas{display:block}
 .stg-btn.death{animation:pulse 1.5s ease-in-out infinite}
 @keyframes pulse{0%,100%{box-shadow:0 3px 12px rgba(0,0,0,0.3)}50%{box-shadow:0 3px 20px rgba(255,0,0,0.5)}}
 #back-btn{margin-top:14px;background:rgba(255,255,255,0.25);border:2px solid rgba(255,255,255,0.4);color:#fff;padding:10px 36px;border-radius:20px;font-size:16px;cursor:pointer}
+#char-select{position:fixed;inset:0;z-index:20;display:none;flex-direction:column;align-items:center;justify-content:center;background:linear-gradient(180deg,#7AC4E6 0%,#4A90B8 50%,#7EC87E 100%)}
+#char-select h2{font-size:30px;color:#fff;text-shadow:2px 2px 0 rgba(0,0,0,0.3);margin-bottom:18px}
+#char-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;width:min(440px,92vw)}
+.char-card{display:flex;flex-direction:column;align-items:center;gap:4px;padding:12px 4px;border:none;border-radius:16px;background:rgba(255,255,255,0.92);cursor:pointer;box-shadow:0 3px 10px rgba(0,0,0,0.25);transition:transform 0.12s}
+.char-card:active{transform:scale(0.94)}
+.char-emoji{font-size:34px;line-height:1}
+.char-thumb{width:46px;height:46px;border-radius:50%;object-fit:cover;background:#fff}
+.char-name{font-size:12px;font-weight:bold;color:#2a3a4a}
+.char-card.locked{background:rgba(255,255,255,0.35);cursor:not-allowed}
+.char-card.locked .char-name{color:#456}
+.char-lock{font-size:10px;color:#c0392b;font-weight:bold}
+#char-back-btn{margin-top:18px;background:rgba(255,255,255,0.25);border:2px solid rgba(255,255,255,0.4);color:#fff;padding:10px 36px;border-radius:20px;font-size:16px;cursor:pointer}
+@media(max-width:420px){#char-grid{grid-template-columns:repeat(3,1fr)}}
 #item-help-btn{margin-top:8px;background:rgba(255,200,50,0.3);border:2px solid rgba(255,200,50,0.5);color:#fff;padding:10px 36px;border-radius:20px;font-size:16px;cursor:pointer}
 #item-help-btn:active{background:rgba(255,200,50,0.5)}
 #item-guide{position:fixed;inset:0;z-index:25;display:none;flex-direction:column;align-items:center;justify-content:flex-start;background:linear-gradient(180deg,#1a1a3a 0%,#2a2a5a 100%);overflow-y:auto;-webkit-overflow-scrolling:touch}
@@ -145,6 +158,11 @@ canvas{display:block}
     <span class="touch-only">◀ ▶ でレーン移動　JUMP でジャンプ（2段OK！）</span>
     <br>★ を集めて ゴール を目指そう！🪽で3段ジャンプ！<br>👾敵に注意！ 落ちたらゲームオーバー！
   </div>
+</div>
+<div id="char-select">
+  <h2>キャラをえらぼう</h2>
+  <div id="char-grid"></div>
+  <button id="char-back-btn">← もどる</button>
 </div>
 <div id="stage-select">
   <h2>ステージ選択</h2>
@@ -670,16 +688,21 @@ function setPlatMats(si){
 }
 
 /* ===== Giraffe Model ===== */
-function mkGiraffe(){
+function mkGiraffe(cfg){
+  cfg=cfg||{};
+  const pick=(v,d)=>(v===undefined||v===null)?d:v;
+  const BODY=pick(cfg.body,0xF5C542), MUZ=pick(cfg.muz,0xFADA6E), SPOT=pick(cfg.spot,0xC89520),
+        HORN=pick(cfg.horn,0xC89520), HORNTIP=pick(cfg.hornTip,0x8B6914), EAR=pick(cfg.ear,0xDAA520), HOOF=pick(cfg.hoof,0x8B6914);
+  const showSpots=pick(cfg.spots,true);
   const g=new THREE.Group();
   const m=c=>new THREE.MeshLambertMaterial({color:c});
-  const body=new THREE.Mesh(new THREE.SphereGeometry(0.45,10,8),m(0xF5C542));
+  const body=new THREE.Mesh(new THREE.SphereGeometry(0.45,10,8),m(BODY));
   body.scale.set(1,0.75,1.4);body.position.set(0,0.8,0);g.add(body);
-  const neck=new THREE.Mesh(new THREE.CylinderGeometry(0.18,0.24,1.1,8),m(0xF5C542));
+  const neck=new THREE.Mesh(new THREE.CylinderGeometry(0.18,0.24,1.1,8),m(BODY));
   neck.position.set(0,1.65,0.15);neck.rotation.x=0.12;g.add(neck);
-  const head=new THREE.Mesh(new THREE.SphereGeometry(0.3,8,6),m(0xF5C542));
+  const head=new THREE.Mesh(new THREE.SphereGeometry(0.3,8,6),m(BODY));
   head.position.set(0,2.3,0.25);g.add(head);
-  const muz=new THREE.Mesh(new THREE.SphereGeometry(0.18,6,5),m(0xFADA6E));
+  const muz=new THREE.Mesh(new THREE.SphereGeometry(0.18,6,5),m(MUZ));
   muz.scale.set(0.8,0.7,1);muz.position.set(0,2.22,0.5);g.add(muz);
   [-1,1].forEach(s=>{
     const e=new THREE.Mesh(new THREE.SphereGeometry(0.065,6,6),m(0x221100));
@@ -687,18 +710,18 @@ function mkGiraffe(){
     const sh=new THREE.Mesh(new THREE.SphereGeometry(0.028,4,4),m(0xffffff));
     sh.position.set(s*0.14,2.4,0.52);g.add(sh);
   });
-  [[0.15,0.95,0.3],[-0.15,0.75,-0.2],[0.08,1.5,0.25],[-0.08,1.8,0.3]].forEach(p=>{
-    const s=new THREE.Mesh(new THREE.SphereGeometry(0.08,5,5),m(0xC89520));
+  if(showSpots) [[0.15,0.95,0.3],[-0.15,0.75,-0.2],[0.08,1.5,0.25],[-0.08,1.8,0.3]].forEach(p=>{
+    const s=new THREE.Mesh(new THREE.SphereGeometry(0.08,5,5),m(SPOT));
     s.position.set(...p);g.add(s);
   });
   [-1,1].forEach(s=>{
-    const h=new THREE.Mesh(new THREE.CylinderGeometry(0.03,0.04,0.3,5),m(0xC89520));
+    const h=new THREE.Mesh(new THREE.CylinderGeometry(0.03,0.04,0.3,5),m(HORN));
     h.position.set(s*0.12,2.6,0.15);g.add(h);
-    const t=new THREE.Mesh(new THREE.SphereGeometry(0.05,5,5),m(0x8B6914));
+    const t=new THREE.Mesh(new THREE.SphereGeometry(0.05,5,5),m(HORNTIP));
     t.position.set(s*0.12,2.78,0.15);g.add(t);
   });
   [-1,1].forEach(s=>{
-    const e=new THREE.Mesh(new THREE.SphereGeometry(0.08,5,5),m(0xDAA520));
+    const e=new THREE.Mesh(new THREE.SphereGeometry(0.08,5,5),m(EAR));
     e.scale.set(0.5,1,0.5);e.rotation.z=s*0.4;e.position.set(s*0.26,2.45,0.1);g.add(e);
   });
   [-1,1].forEach(s=>{
@@ -707,12 +730,54 @@ function mkGiraffe(){
   });
   g.legs=[];
   [[-0.22,0.28,-0.25],[0.22,0.28,-0.25],[-0.22,0.28,0.25],[0.22,0.28,0.25]].forEach(([x,y,z],i)=>{
-    const l=new THREE.Mesh(new THREE.CylinderGeometry(0.07,0.06,0.5,5),m(0xF5C542));
+    const l=new THREE.Mesh(new THREE.CylinderGeometry(0.07,0.06,0.5,5),m(BODY));
     l.position.set(x,y,z);g.add(l);
-    const h=new THREE.Mesh(new THREE.CylinderGeometry(0.07,0.08,0.1,5),m(0x8B6914));
+    const h=new THREE.Mesh(new THREE.CylinderGeometry(0.07,0.08,0.1,5),m(HOOF));
     h.position.set(x,0.02,z);g.add(h);
     g.legs.push({leg:l,i});
   });
+  return g;
+}
+
+/* ===== キャラクター定義（きりんりん＋色違い5体＋あべむつき/りょうや） ===== */
+const CHARACTERS=[
+  {name:"きりんりん", emoji:"🦒", palette:{}},
+  {name:"りょうや",   image:"chars/ryoya.png", palette:{}},
+  {name:"あべむつき", image:"chars/abemutsuki.png", palette:{}},
+];
+let selChar=0;
+
+/* ===== 画像キャラ（あべむつき・りょうや）をビルボード表示 ===== */
+const charTextures={};
+function processCharImage(img){
+  const cv=document.createElement('canvas');
+  cv.width=img.naturalWidth;cv.height=img.naturalHeight;
+  const cx=cv.getContext('2d');cx.drawImage(img,0,0);
+  const data=cx.getImageData(0,0,cv.width,cv.height);const d=data.data;
+  // すでに透明背景なら何もしない。不透明背景なら四隅の色を背景とみなして透過
+  if(d[3]>20){
+    let cr=0,cg=0,cb=0,n=0;
+    [[0,0],[cv.width-1,0],[0,cv.height-1],[cv.width-1,cv.height-1]].forEach(([x,y])=>{
+      const i=(y*cv.width+x)*4;cr+=d[i];cg+=d[i+1];cb+=d[i+2];n++;
+    });
+    cr/=n;cg/=n;cb/=n;const TH=34;
+    for(let i=0;i<d.length;i+=4){
+      if(d[i+3]>0 && Math.abs(d[i]-cr)+Math.abs(d[i+1]-cg)+Math.abs(d[i+2]-cb)<TH)d[i+3]=0;
+    }
+    cx.putImageData(data,0,0);
+  }
+  const tex=new THREE.CanvasTexture(cv);tex.colorSpace=THREE.SRGBColorSpace;return tex;
+}
+CHARACTERS.forEach(c=>{
+  if(c.image){const img=new Image();img.onload=()=>{charTextures[c.image]=processCharImage(img);};img.src=c.image;}
+});
+function mkImageChar(c){
+  const g=new THREE.Group();g.legs=[];
+  const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:charTextures[c.image]||null,transparent:true}));
+  sp.scale.set(2.4,2.4,1);sp.position.set(0,1.25,0);g.add(sp);
+  if(!charTextures[c.image]){
+    const iv=setInterval(()=>{if(charTextures[c.image]){sp.material.map=charTextures[c.image];sp.material.needsUpdate=true;clearInterval(iv);}},200);
+  }
   return g;
 }
 
@@ -1815,7 +1880,7 @@ function showO(t,s){document.getElementById('ot').textContent=t;document.getElem
 function hideO(){document.getElementById('overlay').style.display='none'}
 
 function showScreen(id){
-  ['title-screen','stage-select','hud'].forEach(s=>document.getElementById(s).style.display='none');
+  ['title-screen','char-select','stage-select','hud'].forEach(s=>document.getElementById(s).style.display='none');
   document.getElementById(id).style.display='flex';
 }
 function cleanupGame(){
@@ -1904,13 +1969,38 @@ function cleanupGame(){
 })();
 
 /* ===== Game Flow ===== */
+/* キャラ選択グリッドを生成 */
+(function buildCharGrid(){
+  const grid=document.getElementById('char-grid');
+  if(!grid)return;
+  CHARACTERS.forEach((c,i)=>{
+    const btn=document.createElement('button');
+    btn.className='char-card'+(c.locked?' locked':'');
+    const thumb=c.image?`<img class="char-thumb" src="${c.image}" alt="${c.name}">`:`<span class="char-emoji">${c.emoji}</span>`;
+    btn.innerHTML=`${thumb}<span class="char-name">${c.name}</span>${c.locked?'<span class="char-lock">準備中</span>':''}`;
+    if(!c.locked){
+      btn.addEventListener('click',()=>{
+        selChar=i;
+        showScreen('stage-select');st='select';
+        playTitleBGM();
+      });
+    }
+    grid.appendChild(btn);
+  });
+})();
+
 document.getElementById('start-btn').addEventListener('click',()=>{
-  showScreen('stage-select');st='select';
+  showScreen('char-select');st='char';
+  playTitleBGM();
+});
+
+document.getElementById('char-back-btn').addEventListener('click',()=>{
+  showScreen('title-screen');st='title';
   playTitleBGM();
 });
 
 document.getElementById('back-btn').addEventListener('click',()=>{
-  showScreen('title-screen');st='title';
+  showScreen('char-select');st='char';
   playTitleBGM();
 });
 
@@ -1937,7 +2027,8 @@ function startStage(idx){
   SPD=BASE_SPD*(STAGES[idx].speed||1.0);
   showScreen('hud');hideO();
   if(gir)holder.remove(gir);
-  gir=mkGiraffe();holder.add(gir);
+  const _ch=CHARACTERS[selChar]||CHARACTERS[0];
+  gir=_ch.image?mkImageChar(_ch):mkGiraffe(_ch.palette);holder.add(gir);
   genLevel();updHUD();st='countdown';showTouchUI(true);
   playBGM(idx);
   runCountdown();
